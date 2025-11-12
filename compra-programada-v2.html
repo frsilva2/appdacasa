@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compra Programada PJ - Empório Tecidos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            background: rgba(255,255,255,0.2);
+            height: 8px;
+            border-radius: 4px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: white;
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .progress-step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .progress-step::before {
+            content: attr(data-step);
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            line-height: 30px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .progress-step.active::before {
+            background: white;
+            color: #667eea;
+        }
+
+        .progress-step.completed::before {
+            background: #28a745;
+            content: '✓';
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .step-container {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .step-container.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin-bottom: 25px;
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .required {
+            color: #dc3545;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-control.success {
+            border-color: #28a745;
+        }
+
+        .form-control.error {
+            border-color: #dc3545;
+        }
+
+        .form-helper {
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .form-error {
+            font-size: 13px;
+            color: #dc3545;
+            margin-top: 5px;
+        }
+
+        .address-row {
+            display: grid;
+            grid-template-columns: 150px 1fr 100px 150px;
+            gap: 15px;
+        }
+
+        .info-box {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-box.alert {
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+            color: #721c24;
+        }
+
+        .info-box.info {
+            background: #d1ecf1;
+            border: 1px solid #17a2b8;
+            color: #0c5460;
+        }
+
+        .info-box.success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .category-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .category-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .category-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .category-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .category-description {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .product-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .product-card:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+
+        .product-card.unavailable {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .product-card.unavailable:hover {
+            transform: none;
+            border-color: #e9ecef;
+        }
+
+        .product-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-promotion {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .badge-unavailable {
+            background: #dc3545;
+            color: white;
+        }
+
+        .product-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .product-prices {
+            border-top: 1px solid #e9ecef;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+
+        .price-metro {
+            font-size: 20px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .price-rolo {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .color-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .color-card {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .color-card:hover {
+            border-color: #667eea;
+            transform: scale(1.05);
+        }
+
+        .color-card.selected {
+            border-color: #28a745;
+            background: #d1e7dd;
+        }
+
+        .color-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            border: 3px solid #dee2e6;
+        }
+
+        .color-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .color-code {
+            font-size: 11px;
+            color: #6c757d;
+        }
+
+        .quantity-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .quantity-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quantity-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .quantity-input {
+            width: 100px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .quantity-info {
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+
+        .cart-summary {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            min-width: 300px;
+            z-index: 100;
+        }
+
+        .cart-total {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .cart-minimum {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .cart-progress {
+            background: #e9ecef;
+            height: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .cart-progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+            min-width: 350px;
+            animation: slideInRight 0.5s ease;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .notification.success {
+            border-left: 5px solid #28a745;
+        }
+
+        .notification.warning {
+            border-left: 5px solid #ffc107;
+        }
+
+        .notification.error {
+            border-left: 5px solid #dc3545;
+        }
+
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .address-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .category-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .product-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .cart-summary {
+                bottom: 0;
+                right: 0;
+                left: 0;
+                border-radius: 12px 12px 0 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header com progresso -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">🏢 Compra Programada PJ</div>
+            <button class="back-button" onclick="voltarEtapa()" id="backBtn" style="display: none;">
+                ← Voltar
+            </button>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar" style="width: 25%;"></div>
+        </div>
+        <div class="progress-steps">
+            <div class="progress-step active" data-step="1">Dados</div>
+            <div class="progress-step" data-step="2">Produtos</div>
+            <div class="progress-step" data-step="3">Revisão</div>
+            <div class="progress-step" data-step="4">Pagamento</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Etapa 1: Dados da Empresa -->
+        <div class="step-container active" id="step1">
+            <div class="card">
+                <h2>Dados da Empresa</h2>
+                
+                <div class="form-group">
+                    <label>CNPJ <span class="required">*</span></label>
+                    <input type="text" id="cnpj" class="form-control" placeholder="00.000.000/0000-00">
+                    <div class="form-helper">Digite o CNPJ para buscar dados cadastrados</div>
+                </div>
+
+                <div id="loadingCNPJ" style="display: none; text-align: center; padding: 20px;">
+                    <div style="font-size: 2em;">⏳</div>
+                    <p>Buscando dados...</p>
+                </div>
+
+                <div id="empresaData" style="display: none;">
+                    <div class="info-box success">
+                        ✅ Empresa encontrada! Dados preenchidos automaticamente.
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Razão Social <span class="required">*</span></label>
+                        <input type="text" id="razaoSocial" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Inscrição Estadual <span class="required">*</span></label>
+                        <input type="text" id="inscricaoEstadual" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Regime Tributário <span class="required">*</span></label>
+                    <select id="regimeTributario" class="form-control" onchange="updateICMSInfo()">
+                        <option value="">Selecione...</option>
+                        <option value="SIMPLES NACIONAL">SIMPLES NACIONAL</option>
+                        <option value="LUCRO REAL">LUCRO REAL</option>
+                        <option value="LUCRO PRESUMIDO">LUCRO PRESUMIDO</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>CEP <span class="required">*</span></label>
+                    <input type="text" id="cep" class="form-control" placeholder="00000-000">
+                    <div class="form-helper">Digite o CEP para buscar endereço</div>
+                </div>
+
+                <div class="address-row">
+                    <div class="form-group">
+                        <label>Endereço</label>
+                        <input type="text" id="endereco" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Número <span class="required">*</span></label>
+                        <input type="text" id="numero" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Complemento</label>
+                        <input type="text" id="complemento" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Bairro</label>
+                        <input type="text" id="bairro" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Cidade</label>
+                        <input type="text" id="cidade" class="form-control" readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>WhatsApp <span class="required">*</span></label>
+                        <input type="tel" id="whatsapp" class="form-control" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label>E-mail <span class="required">*</span></label>
+                        <input type="email" id="email" class="form-control">
+                    </div>
+                </div>
+
+                <div class="info-box alert" id="icmsAlert" style="display: none;">
+                    <strong>⚠️ Atenção - Diferencial de Alíquota ICMS</strong><br>
+                    Sua empresa está enquadrada no SIMPLES NACIONAL. O pedido será faturado do Espírito Santo, 
+                    portanto será necessário recolher o diferencial de alíquota de ICMS de 18%. 
+                    Podemos orientar sobre o procedimento, caso necessário.
+                </div>
+
+                <div class="info-box info" id="icmsInfo" style="display: none;">
+                    <strong>✅ Regime Tributário: LUCRO REAL/PRESUMIDO</strong><br>
+                    Para empresas optantes pelo Lucro Real ou Presumido, não há necessidade de recolhimento 
+                    do diferencial de alíquota. O ICMS será recolhido normalmente na venda.
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="avancarParaProdutos()">
+                    Continuar para Produtos →
+                </button>
+            </div>
+        </div>
+
+        <!-- Etapa 2: Seleção de Produtos -->
+        <div class="step-container" id="step2">
+            <!-- Categorias -->
+            <div id="categoryView">
+                <div class="card">
+                    <h2>Selecione a Categoria</h2>
+                    <div class="category-grid" id="categoryGrid">
+                        <!-- Categorias serão carregadas aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produtos da Categoria -->
+            <div id="productView" style="display: none;">
+                <div class="card">
+                    <h2 id="categoryTitle">Produtos</h2>
+                    <button class="btn btn-secondary" onclick="voltarParaCategorias()">
+                        ← Voltar às Categorias
+                    </button>
+                    <div class="product-grid" id="productGrid">
+                        <!-- Produtos serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seleção de Cores -->
+            <div id="colorView" style="display: none;">
+                <div class="card">
+                    <h2 id="productTitle">Selecione as Cores</h2>
+                    <div class="color-selection" id="colorGrid">
+                        <!-- Cores serão carregadas aqui -->
+                    </div>
+                    
+                    <div class="quantity-info">
+                        <h3>Quantidade</h3>
+                        <p>Pedido em múltiplos de 60 metros (1 rolo)</p>
+                    </div>
+                    
+                    <div class="quantity-selector">
+                        <button class="quantity-btn" onclick="diminuirQuantidade()">−</button>
+                        <input type="number" id="quantidade" class="form-control quantity-input" value="60" readonly>
+                        <button class="quantity-btn" onclick="aumentarQuantidade()">+</button>
+                        <span>metros</span>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-secondary" onclick="voltarParaProdutos()">
+                            ← Voltar
+                        </button>
+                        <button class="btn btn-success" onclick="confirmarItem()">
+                            ✅ Confirmar e Adicionar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Etapa 3: Revisão -->
+        <div class="step-container" id="step3">
+            <div class="card">
+                <h2>Revisão do Pedido</h2>
+                <div id="orderReview">
+                    <!-- Revisão será carregada aqui -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Etapa 4: Pagamento -->
+        <div class="step-container" id="step4">
+            <div class="card">
+                <h2>Forma de Pagamento</h2>
+                <div id="paymentOptions">
+                    <!-- Opções de pagamento serão carregadas aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carrinho Resumo -->
+    <div class="cart-summary" id="cartSummary" style="display: none;">
+        <div class="cart-total">R$ <span id="cartTotal">0,00</span></div>
+        <div class="cart-minimum">Mínimo: R$ 500,00</div>
+        <div class="cart-progress">
+            <div class="cart-progress-fill" id="cartProgress" style="width: 0%;"></div>
+        </div>
+        <div style="margin-top: 10px; font-size: 14px;">
+            <span id="cartMissing" style="color: #dc3545;">Faltam R$ 500,00</span>
+        </div>
+        <button class="btn btn-success" style="width: 100%; margin-top: 15px;" onclick="finalizarPedido()" id="btnFinalizar" disabled>
+            Finalizar Pedido
+        </button>
+    </div>
+
+    <!-- Notificações -->
+    <div class="notification" id="notification">
+        <div class="notification-title" id="notificationTitle"></div>
+        <div class="notification-message" id="notificationMessage"></div>
+    </div>
+
+    <script src="database-pj.js"></script>
+    <script src="cep-service.js"></script>
+    <script src="compra-programada-v2.js"></script>
+</body>
+</html>
