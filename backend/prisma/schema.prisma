@@ -1,0 +1,651 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserType {
+  ADMIN
+  GERENTE_LOJA
+  USUARIO_CD
+  FORNECEDOR
+  CLIENTE_B2B
+  OPERADOR
+}
+
+enum RequisicaoStatus {
+  PENDENTE
+  APROVADA
+  APROVADA_PARCIAL
+  RECUSADA
+  ATENDIDA_PARCIAL
+  ATENDIDA
+  ENVIADA
+}
+
+enum CotacaoStatus {
+  ENVIADA
+  RESPONDENDO
+  COMPLETA
+  APROVADA
+  RECUSADA
+}
+
+enum PedidoB2BStatus {
+  SOLICITADO
+  APROVADO
+  RECUSADO
+  AGUARDANDO_PAGAMENTO
+  PAGO
+  EM_PRODUCAO
+  ENVIADO
+  ENTREGUE
+  CANCELADO
+}
+
+enum CurvaABC {
+  A
+  B
+  C
+}
+
+enum TipoMovimentacao {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  INVENTARIO
+}
+
+// =====================================================
+// USUÁRIOS E AUTENTICAÇÃO
+// =====================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  type      UserType
+  active    Boolean  @default(true)
+  telefone  String?
+
+  // Relações específicas por tipo
+  lojaId    String?
+  loja      Loja?    @relation(fields: [lojaId], references: [id])
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  requisicoesAbastecimento RequisicoesAbastecimento[]
+  cotacoes                 Cotacao[]
+  pedidosB2B               PedidoB2B[]
+  auditLogs                AuditLog[]
+
+  @@index([email])
+  @@index([type])
+  @@index([lojaId])
+}
+
+// =====================================================
+// LOJAS E ESTRUTURA
+// =====================================================
+
+model Loja {
+  id         String  @id @default(uuid())
+  codigo     String  @unique // G1, GUARANIS, IPATINGA, TO, CF
+  nome       String
+  prioridade Int     @default(5) // 1-5, sendo 1 = maior prioridade
+  endereco   String?
+  telefone   String?
+  active     Boolean @default(true)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relações
+  users                      User[]
+  requisicoesAbastecimento   RequisicoesAbastecimento[]
+  pedidosB2BDestino          PedidoB2B[]
+
+  @@index([codigo])
+}
+
+// =====================================================
+// PRODUTOS E ESTOQUE
+// =====================================================
+
+model Produto {
+  id            String   @id @default(uuid())
+  codigo        String   @unique // 4402, 2767, etc
+  nome          String
+  categoria     String
+  precoAtacado  Decimal  @db.Decimal(10, 2)
+  precoVarejo   Decimal  @db.Decimal(10, 2)
+  curva         CurvaABC @default(B)
+  active        Boolean  @default(true)
+
+  // Specs
+  larguraMetros Decimal? @db.Decimal(5, 2)
+  composicao    String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relações
+  cores                           Cor[]
+  estoques                        Estoque[]
+  requisicoesAbastecimentoItems   RequisicoesAbastecimentoItem[]
+  cotacaoItems                    CotacaoItem[]
+  pedidoB2BItems                  PedidoB2BItem[]
+  historicoPrecosXML              HistoricoPrecosXML[]
+  movimentacoes                   MovimentacaoEstoque[]
+
+  @@index([codigo])
+  @@index([curva])
+  @@index([categoria])
+}
+
+model Cor {
+  id         String  @id @default(uuid())
+  nome       String
+  codigoHex  String? // opcional, para visualização
+  active     Boolean @default(true)
+
+  produtoId  String
+  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relações
+  estoques                        Estoque[]
+  requisicoesAbastecimentoItems   RequisicoesAbastecimentoItem[]
+  cotacaoItems                    CotacaoItem[]
+  pedidoB2BItems                  PedidoB2BItem[]
+  movimentacoes                   MovimentacaoEstoque[]
+
+  @@index([produtoId])
+  @@unique([produtoId, nome])
+}
+
+model Estoque {
+  id             String   @id @default(uuid())
+  quantidade     Decimal  @db.Decimal(10, 2) // em metros
+  quantidadeMin  Decimal? @db.Decimal(10, 2) // estoque mínimo
+
+  produtoId      String
+  produto        Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  corId          String
+  cor            Cor      @relation(fields: [corId], references: [id], onDelete: Cascade)
+
+  // Localização: CD por padrão, mas pode ter estoque por loja
+  local          String   @default("CD") // CD, G1, GUARANIS, etc
+
+  ultimaContagem DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([produtoId, corId, local])
+  @@index([produtoId])
+  @@index([corId])
+  @@index([local])
+}
+
+// =====================================================
+// APP 1: REQUISIÇÃO DE ABASTECIMENTO
+// =====================================================
+
+model RequisicoesAbastecimento {
+  id              String             @id @default(uuid())
+  numero          String             @unique // REQ-2024-0001
+  status          RequisicaoStatus   @default(PENDENTE)
+
+  // Solicitante
+  lojaId          String
+  loja            Loja               @relation(fields: [lojaId], references: [id])
+
+  solicitanteId   String
+  solicitante     User               @relation(fields: [solicitanteId], references: [id])
+
+  // Aprovação
+  aprovadoEm      DateTime?
+  justificativaRecusa String?       @db.Text
+
+  // Observações
+  observacoes     String?            @db.Text
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relações
+  items           RequisicoesAbastecimentoItem[]
+  romaneios       Romaneio[]
+
+  @@index([numero])
+  @@index([lojaId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RequisicoesAbastecimentoItem {
+  id                    String                     @id @default(uuid())
+
+  requisicaoId          String
+  requisicao            RequisicoesAbastecimento   @relation(fields: [requisicaoId], references: [id], onDelete: Cascade)
+
+  produtoId             String
+  produto               Produto                    @relation(fields: [produtoId], references: [id])
+
+  corId                 String
+  cor                   Cor                        @relation(fields: [corId], references: [id])
+
+  quantidadeSolicitada  Decimal                    @db.Decimal(10, 2)
+  quantidadeAprovada    Decimal?                   @db.Decimal(10, 2)
+  quantidadeAtendida    Decimal?                   @db.Decimal(10, 2)
+
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@index([requisicaoId])
+  @@index([produtoId])
+  @@index([corId])
+}
+
+// =====================================================
+// APP 2: REQUISIÇÃO DE COTAÇÃO
+// =====================================================
+
+model Cotacao {
+  id              String         @id @default(uuid())
+  numero          String         @unique // COT-2024-0001
+  status          CotacaoStatus  @default(ENVIADA)
+
+  // Origem
+  criadorId       String
+  criador         User           @relation(fields: [criadorId], references: [id])
+
+  // Trigger automático?
+  automática      Boolean        @default(false)
+  requisicaoOrigemId String?
+
+  // Prazo
+  prazoResposta   DateTime       // 1 dia após criação
+
+  // Aprovação final
+  aprovadaEm      DateTime?
+  fornecedorEscolhidoId String?
+  fornecedorEscolhido   Fornecedor? @relation("FornecedorEscolhido", fields: [fornecedorEscolhidoId], references: [id])
+
+  observacoes     String?        @db.Text
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relações
+  items           CotacaoItem[]
+  respostas       RespostaCotacao[]
+
+  @@index([numero])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CotacaoItem {
+  id                 String   @id @default(uuid())
+
+  cotacaoId          String
+  cotacao            Cotacao  @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
+
+  produtoId          String
+  produto            Produto  @relation(fields: [produtoId], references: [id])
+
+  corId              String
+  cor                Cor      @relation(fields: [corId], references: [id])
+
+  quantidadeSolicitada Decimal @db.Decimal(10, 2)
+
+  // Comparação com histórico
+  ultimoPrecoCompra  Decimal? @db.Decimal(10, 2)
+  dataUltimaCompra   DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([cotacaoId])
+  @@index([produtoId])
+  @@index([corId])
+}
+
+model Fornecedor {
+  id           String  @id @default(uuid())
+  codigo       String  @unique // FORN-001, FORN-002, etc
+  nome         String
+  cnpj         String? @unique
+  contato      String?
+  email        String?
+  telefone     String?
+  active       Boolean @default(true)
+
+  // Token de acesso público para respostas de cotação
+  tokenPublico String  @unique @default(uuid())
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relações
+  respostas         RespostaCotacao[]
+  historicoPrecosXML HistoricoPrecosXML[]
+  cotacoesEscolhidas Cotacao[] @relation("FornecedorEscolhido")
+
+  @@index([codigo])
+  @@index([cnpj])
+  @@index([tokenPublico])
+}
+
+model RespostaCotacao {
+  id                    String      @id @default(uuid())
+
+  cotacaoId             String
+  cotacao               Cotacao     @relation(fields: [cotacaoId], references: [id], onDelete: Cascade)
+
+  fornecedorId          String
+  fornecedor            Fornecedor  @relation(fields: [fornecedorId], references: [id])
+
+  disponivel            Boolean
+  quantidadeDisponivel  Decimal?    @db.Decimal(10, 2)
+  precoUnitario         Decimal?    @db.Decimal(10, 2)
+  prazoEntrega          Int?        // dias
+
+  observacoes           String?     @db.Text
+
+  // Análise automática
+  variacao              Decimal?    @db.Decimal(10, 2) // % de variação vs último preço
+  melhorOpcao           Boolean     @default(false)
+
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@unique([cotacaoId, fornecedorId])
+  @@index([cotacaoId])
+  @@index([fornecedorId])
+}
+
+// Histórico de preços extraído de XMLs de notas fiscais
+model HistoricoPrecosXML {
+  id             String     @id @default(uuid())
+
+  produtoId      String
+  produto        Produto    @relation(fields: [produtoId], references: [id])
+
+  fornecedorId   String
+  fornecedor     Fornecedor @relation(fields: [fornecedorId], references: [id])
+
+  precoUnitario  Decimal    @db.Decimal(10, 2)
+  quantidade     Decimal    @db.Decimal(10, 2)
+  dataCompra     DateTime
+
+  numeroNF       String?
+  chaveNF        String?
+
+  createdAt      DateTime   @default(now())
+
+  @@index([produtoId])
+  @@index([fornecedorId])
+  @@index([dataCompra])
+}
+
+// =====================================================
+// APP 3: COMPRA PROGRAMADA B2B
+// =====================================================
+
+model ClienteB2B {
+  id                String   @id @default(uuid())
+
+  // Dados da empresa
+  razaoSocial       String
+  nomeFantasia      String?
+  cnpj              String   @unique
+  inscricaoEstadual String
+
+  // Endereço
+  cep               String
+  endereco          String
+  numero            String
+  complemento       String?
+  bairro            String
+  cidade            String
+  estado            String   // Deve ser MG
+
+  // Contato
+  telefone          String
+  email             String   @unique
+
+  // Status
+  aprovado          Boolean  @default(false)
+  active            Boolean  @default(true)
+  aprovadoEm        DateTime?
+
+  // Observações
+  observacoes       String?  @db.Text
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relações
+  pedidos           PedidoB2B[]
+
+  @@index([cnpj])
+  @@index([email])
+  @@index([aprovado])
+}
+
+model PedidoB2B {
+  id                 String          @id @default(uuid())
+  numero             String          @unique // PED-2024-0001
+  status             PedidoB2BStatus @default(SOLICITADO)
+
+  clienteId          String
+  cliente            ClienteB2B      @relation(fields: [clienteId], references: [id])
+
+  // Valores
+  valorTotal         Decimal         @db.Decimal(10, 2)
+  valorFrete         Decimal         @default(0) @db.Decimal(10, 2) // Grátis
+
+  // Pagamento
+  formaPagamento     String?         // CREDITO_4X, PIX, DINHEIRO
+  linkPagamento      String?         @db.Text
+  pagoEm             DateTime?
+
+  // Entrega
+  lojaDestinoId      String?
+  lojaDestino        Loja?           @relation(fields: [lojaDestinoId], references: [id])
+
+  enderecoEntrega    String?         @db.Text
+  prazoEntrega       Int             @default(15) // dias
+  dataEnvio          DateTime?
+  dataEntrega        DateTime?
+
+  // NFe
+  numeroNFe          String?
+  chaveNFe           String?
+  dataEmissaoNFe     DateTime?
+
+  // Justificativas
+  justificativaRecusa String?        @db.Text
+  observacoes         String?        @db.Text
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relações
+  items              PedidoB2BItem[]
+
+  @@index([numero])
+  @@index([clienteId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PedidoB2BItem {
+  id               String     @id @default(uuid())
+
+  pedidoId         String
+  pedido           PedidoB2B  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  produtoId        String
+  produto          Produto    @relation(fields: [produtoId], references: [id])
+
+  corId            String
+  cor              Cor        @relation(fields: [corId], references: [id])
+
+  quantidade       Decimal    @db.Decimal(10, 2) // metros
+  precoUnitario    Decimal    @db.Decimal(10, 2)
+  subtotal         Decimal    @db.Decimal(10, 2)
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([pedidoId])
+  @@index([produtoId])
+  @@index([corId])
+}
+
+// =====================================================
+// APP 4: INVENTÁRIO E ALMOXARIFADO
+// =====================================================
+
+model MovimentacaoEstoque {
+  id               String            @id @default(uuid())
+  tipo             TipoMovimentacao
+
+  produtoId        String
+  produto          Produto           @relation(fields: [produtoId], references: [id])
+
+  corId            String
+  cor              Cor               @relation(fields: [corId], references: [id])
+
+  quantidade       Decimal           @db.Decimal(10, 2)
+  quantidadeAntes  Decimal           @db.Decimal(10, 2)
+  quantidadeDepois Decimal           @db.Decimal(10, 2)
+
+  local            String            // CD, G1, etc
+
+  // Referências
+  numeroNF         String?
+  romaneioId       String?
+  romaneio         Romaneio?         @relation(fields: [romaneioId], references: [id])
+
+  // OCR data
+  imagemUrl        String?           @db.Text
+  ocrData          String?           @db.Text // JSON com dados extraídos
+
+  observacoes      String?           @db.Text
+
+  createdAt        DateTime          @default(now())
+
+  @@index([produtoId])
+  @@index([corId])
+  @@index([local])
+  @@index([tipo])
+  @@index([createdAt])
+}
+
+model Romaneio {
+  id                 String                     @id @default(uuid())
+  numero             String                     @unique // ROM-2024-0001
+
+  requisicaoId       String
+  requisicao         RequisicoesAbastecimento   @relation(fields: [requisicaoId], references: [id])
+
+  valorTotal         Decimal                    @db.Decimal(10, 2)
+
+  dataSeparacao      DateTime
+  dataEnvio          DateTime?
+
+  pdfUrl             String?                    @db.Text
+
+  observacoes        String?                    @db.Text
+
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  // Relações
+  movimentacoes      MovimentacaoEstoque[]
+
+  @@index([numero])
+  @@index([requisicaoId])
+  @@index([createdAt])
+}
+
+model DEPARA {
+  id               String   @id @default(uuid())
+  nomeFornecedor   String   // Nome como vem no XML/etiqueta
+  nomeERP          String   // Nome unificado no sistema
+
+  produtoId        String?  // Opcional: vincular ao produto
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([nomeFornecedor])
+  @@index([nomeFornecedor])
+  @@index([nomeERP])
+}
+
+// =====================================================
+// AUDITORIA E LOGS
+// =====================================================
+
+model AuditLog {
+  id           String   @id @default(uuid())
+
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+
+  action       String   // LOGIN, CREATE, UPDATE, DELETE, APPROVE, REJECT, etc
+  entity       String   // User, Produto, Requisicao, etc
+  entityId     String?
+
+  oldData      String?  @db.Text // JSON
+  newData      String?  @db.Text // JSON
+
+  ipAddress    String?
+  userAgent    String?  @db.Text
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// =====================================================
+// CONFIGURAÇÕES E SISTEMA
+// =====================================================
+
+model Configuracao {
+  id        String   @id @default(uuid())
+  chave     String   @unique
+  valor     String   @db.Text
+  descricao String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chave])
+}
