@@ -158,16 +158,17 @@ model Produto {
 }
 
 model Cor {
-  id         String  @id @default(uuid())
-  nome       String
-  codigoHex  String? // opcional, para visualização
-  active     Boolean @default(true)
+  id             String  @id @default(uuid())
+  nome           String
+  codigoHex      String? // opcional, para visualização
+  arquivoImagem  String? // nome do arquivo da foto (ex: branco_100.jpg)
+  active         Boolean @default(true)
 
-  produtoId  String
-  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produtoId      String
+  produto        Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relações
   estoques                        Estoque[]
@@ -279,7 +280,7 @@ model Cotacao {
   criador         User           @relation(fields: [criadorId], references: [id])
 
   // Trigger automático?
-  automática      Boolean        @default(false)
+  automatica      Boolean        @default(false)
   requisicaoOrigemId String?
 
   // Prazo
@@ -298,6 +299,7 @@ model Cotacao {
   // Relações
   items           CotacaoItem[]
   respostas       RespostaCotacao[]
+  tokens          CotacaoFornecedorToken[] @relation("CotacaoTokens")
 
   @@index([numero])
   @@index([status])
@@ -321,6 +323,9 @@ model CotacaoItem {
   // Comparação com histórico
   ultimoPrecoCompra  Decimal? @db.Decimal(10, 2)
   dataUltimaCompra   DateTime?
+
+  // Relações
+  respostas          CotacaoItemResposta[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -350,6 +355,8 @@ model Fornecedor {
   respostas         RespostaCotacao[]
   historicoPrecosXML HistoricoPrecosXML[]
   cotacoesEscolhidas Cotacao[] @relation("FornecedorEscolhido")
+  tokens            CotacaoFornecedorToken[] @relation("FornecedorTokens")
+  respostasCotacaoItem CotacaoItemResposta[] @relation("FornecedorRespostasCotacao")
 
   @@index([codigo])
   @@index([cnpj])
@@ -372,7 +379,7 @@ model RespostaCotacao {
 
   observacoes           String?     @db.Text
 
-  // Análise automática
+  // Análise automatica
   variacao              Decimal?    @db.Decimal(10, 2) // % de variação vs último preço
   melhorOpcao           Boolean     @default(false)
 
@@ -382,6 +389,61 @@ model RespostaCotacao {
   @@unique([cotacaoId, fornecedorId])
   @@index([cotacaoId])
   @@index([fornecedorId])
+}
+
+// Token único para cada fornecedor acessar uma cotação específica
+model CotacaoFornecedorToken {
+  id            String   @id @default(uuid())
+
+  cotacaoId     String
+  cotacao       Cotacao  @relation("CotacaoTokens", fields: [cotacaoId], references: [id], onDelete: Cascade)
+
+  fornecedorId  String
+  fornecedor    Fornecedor @relation("FornecedorTokens", fields: [fornecedorId], references: [id])
+
+  token         String   @unique
+
+  // Controle de resposta
+  respondido    Boolean  @default(false)
+  dataResposta  DateTime?
+
+  // Relações
+  respostas     CotacaoItemResposta[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([cotacaoId, fornecedorId])
+  @@index([token])
+  @@index([cotacaoId])
+  @@index([fornecedorId])
+}
+
+// Resposta de um fornecedor para um item específico da cotação
+model CotacaoItemResposta {
+  id               String   @id @default(uuid())
+
+  cotacaoItemId    String
+  cotacaoItem      CotacaoItem @relation(fields: [cotacaoItemId], references: [id], onDelete: Cascade)
+
+  fornecedorId     String
+  fornecedor       Fornecedor @relation("FornecedorRespostasCotacao", fields: [fornecedorId], references: [id])
+
+  tokenId          String
+  token            CotacaoFornecedorToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  // Resposta
+  preco            Decimal   @db.Decimal(10, 2)
+  prazoEntrega     Int?      // dias
+  observacoes      String?   @db.Text
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([cotacaoItemId, fornecedorId])
+  @@index([cotacaoItemId])
+  @@index([fornecedorId])
+  @@index([tokenId])
 }
 
 // Histórico de preços extraído de XMLs de notas fiscais
@@ -498,6 +560,8 @@ model PedidoB2B {
   @@index([clienteId])
   @@index([status])
   @@index([createdAt])
+  userId          String
+  user             User              @relation(fields: [userId], references: [id])
 }
 
 model PedidoB2BItem {
@@ -649,3 +713,5 @@ model Configuracao {
 
   @@index([chave])
 }
+
+

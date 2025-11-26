@@ -4,32 +4,47 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 // Configurações
 import { errorHandler } from './middlewares/errorHandler.js';
 import { notFoundHandler } from './middlewares/notFoundHandler.js';
 import { rateLimiter } from './middlewares/rateLimiter.js';
 import logger from './config/logger.js';
+import prisma from './config/database.js';
 
 // Rotas
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import lojaRoutes from './routes/loja.routes.js';
 import produtoRoutes from './routes/produto.routes.js';
+import fornecedorRoutes from './routes/fornecedor.routes.js';
 import requisicaoAbastecimentoRoutes from './routes/requisicaoAbastecimento.routes.js';
 import cotacaoRoutes from './routes/cotacao.routes.js';
 import pedidoB2BRoutes from './routes/pedidoB2B.routes.js';
 import inventarioRoutes from './routes/inventario.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
+import coresRoutes from './routes/cores.routes.js';
+import etiquetasRoutes from './routes/etiquetas.routes.js';
+import deparaRoutes from './routes/depara.routes.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
+
+// Obter __dirname em ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Caminho para o diretório de assets
+const ASSETS_PATH = process.env.ASSETS_PATH || path.join(__dirname, '../../../Emporio-Tecidos-Assets');
 
 // =====================================================
 // MIDDLEWARES GLOBAIS
@@ -40,9 +55,32 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS
+// CORS - Aceitar múltiplas origens localhost em desenvolvimento
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+
+    // Em desenvolvimento, aceitar qualquer localhost
+    if (NODE_ENV === 'development' && origin.startsWith('http://localhost')) {
+      return callback(null, true);
+    }
+
+    // Verificar lista de origens permitidas
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 
@@ -61,11 +99,80 @@ if (NODE_ENV === 'development') {
   }));
 }
 
-// Rate limiting
+// Arquivos estáticos (uploads) - ANTES do rate limiter para não limitar imagens
+app.use('/uploads', express.static('uploads'));
+
+// Arquivos estáticos (assets do Google Drive) - ANTES do rate limiter
+app.use('/assets', express.static(ASSETS_PATH));
+app.use('/assets/cores/fotos', express.static(path.join(ASSETS_PATH, 'cores', 'fotos')));
+app.use('/assets/etiquetas', express.static(path.join(ASSETS_PATH, 'etiquetas')));
+app.use('/assets/logo', express.static(path.join(ASSETS_PATH, 'logo')));
+
+// Rate limiting (aplicado apenas às rotas da API, não aos assets)
 app.use(rateLimiter);
 
-// Arquivos estáticos (uploads)
-app.use('/uploads', express.static('uploads'));
+// Carregar metadata JSON das cores (cache em memória)
+let coresMetadata = null;
+function loadCoresMetadata() {
+  if (!coresMetadata) {
+    try {
+      const metadataPath = path.join(ASSETS_PATH, 'cores', 'cores-metadata.json');
+      const data = fs.readFileSync(metadataPath, 'utf8');
+      coresMetadata = JSON.parse(data);
+      logger.info(`✅ Metadata de cores carregado: ${coresMetadata.total} cores`);
+    } catch (error) {
+      logger.error('❌ Erro ao carregar cores-metadata.json:', error);
+      coresMetadata = { aprovadas: [] };
+    }
+  }
+  return coresMetadata;
+}
+
+// Endpoint para buscar imagem da cor (usa metadata JSON)
+app.get('/api/cores/:corId/imagem', async (req, res) => {
+  try {
+    const { corId } = req.params;
+    const corIdNumerico = parseInt(corId);
+
+    // Carregar metadata
+    const metadata = loadCoresMetadata();
+
+    // Buscar cor no metadata pelo ID numérico
+    logger.info(`🔍 Buscando imagem para cor ID: ${corIdNumerico}`);
+
+    const corMeta = metadata.aprovadas.find(c => c.id === corIdNumerico);
+
+    if (!corMeta || !corMeta.arquivo_imagem) {
+      logger.warn(`❌ Cor ${corIdNumerico} não encontrada no metadata`);
+      return res.status(404).json({
+        error: 'Cor não encontrada no metadata',
+        corId: corIdNumerico,
+        coresDisponiveis: metadata.aprovadas.map(c => `${c.id}: ${c.nome_cor}`).slice(0, 10)
+      });
+    }
+
+    logger.info(`✅ Cor encontrada: "${corMeta.nome_cor}" - Arquivo: ${corMeta.arquivo_imagem}`);
+
+    // Caminho exato da imagem
+    const filePath = path.join(ASSETS_PATH, 'cores', 'fotos', corMeta.arquivo_imagem);
+
+    if (!fs.existsSync(filePath)) {
+      logger.error(`❌ Arquivo físico não encontrado: ${corMeta.arquivo_imagem}`);
+      logger.error(`   Caminho procurado: ${filePath}`);
+      return res.status(404).json({
+        error: 'Arquivo de imagem não encontrado no disco',
+        arquivo: corMeta.arquivo_imagem,
+        caminho: filePath
+      });
+    }
+
+    logger.info(`📸 Servindo imagem: ${corMeta.arquivo_imagem}`);
+    return res.sendFile(filePath);
+  } catch (error) {
+    logger.error('Erro ao buscar imagem da cor:', error);
+    res.status(500).json({ error: 'Erro ao buscar imagem' });
+  }
+});
 
 // =====================================================
 // HEALTH CHECK
@@ -90,11 +197,15 @@ app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);
 app.use(`${API_PREFIX}/lojas`, lojaRoutes);
 app.use(`${API_PREFIX}/produtos`, produtoRoutes);
+app.use(`${API_PREFIX}/fornecedores`, fornecedorRoutes);
 app.use(`${API_PREFIX}/requisicoes-abastecimento`, requisicaoAbastecimentoRoutes);
 app.use(`${API_PREFIX}/cotacoes`, cotacaoRoutes);
 app.use(`${API_PREFIX}/pedidos-b2b`, pedidoB2BRoutes);
 app.use(`${API_PREFIX}/inventario`, inventarioRoutes);
 app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
+app.use(`${API_PREFIX}/cores`, coresRoutes);
+app.use(`${API_PREFIX}/etiquetas`, etiquetasRoutes);
+app.use(`${API_PREFIX}/depara`, deparaRoutes);
 
 // =====================================================
 // ERROR HANDLERS
@@ -135,3 +246,5 @@ process.on('SIGINT', () => {
 });
 
 export default app;
+// trigger restart
+
