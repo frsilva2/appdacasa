@@ -478,215 +478,6 @@ export const recusarPedido = async (req, res) => {
   }
 };
 
-// Iniciar separação (Admin/Operador)
-export const iniciarSeparacao = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const pedido = await prisma.pedidoB2B.findUnique({
-      where: { id },
-    });
-
-    if (!pedido) {
-      return res.status(404).json({
-        success: false,
-        message: 'Pedido não encontrado',
-      });
-    }
-
-    if (pedido.status !== 'APROVADA') {
-      return res.status(400).json({
-        success: false,
-        message: 'Apenas pedidos aprovados podem iniciar separação',
-      });
-    }
-
-    const pedidoAtualizado = await prisma.pedidoB2B.update({
-      where: { id },
-      data: {
-        status: 'EM_SEPARACAO',
-      },
-      include: {
-        cliente: true,
-        items: {
-          include: {
-            produto: true,
-            cor: true,
-          },
-        },
-      },
-    });
-
-    // Log de auditoria
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'UPDATE',
-        entity: 'PedidoB2B',
-        entityId: id,
-        newData: JSON.stringify({ status: 'EM_SEPARACAO' }),
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      },
-    });
-
-    logger.info(`Separação iniciada: ${pedidoAtualizado.numero} por ${req.user.email}`);
-
-    res.json({
-      success: true,
-      message: 'Separação iniciada com sucesso',
-      data: pedidoAtualizado,
-    });
-  } catch (error) {
-    logger.error('Erro ao iniciar separação:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao iniciar separação',
-    });
-  }
-};
-
-// Marcar como enviado (Admin/Operador)
-export const marcarComoEnviado = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { numeroRastreio, transportadora } = req.body;
-
-    const pedido = await prisma.pedidoB2B.findUnique({
-      where: { id },
-    });
-
-    if (!pedido) {
-      return res.status(404).json({
-        success: false,
-        message: 'Pedido não encontrado',
-      });
-    }
-
-    if (pedido.status !== 'EM_SEPARACAO') {
-      return res.status(400).json({
-        success: false,
-        message: 'Apenas pedidos em separação podem ser enviados',
-      });
-    }
-
-    const pedidoAtualizado = await prisma.pedidoB2B.update({
-      where: { id },
-      data: {
-        status: 'ENVIADA',
-        dataEnvio: new Date(),
-        numeroRastreio: numeroRastreio || null,
-        transportadora: transportadora || null,
-      },
-      include: {
-        cliente: true,
-        items: {
-          include: {
-            produto: true,
-            cor: true,
-          },
-        },
-      },
-    });
-
-    // Log de auditoria
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'UPDATE',
-        entity: 'PedidoB2B',
-        entityId: id,
-        newData: JSON.stringify({ status: 'ENVIADA', numeroRastreio, transportadora }),
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      },
-    });
-
-    logger.info(`Pedido enviado: ${pedidoAtualizado.numero} por ${req.user.email}`);
-
-    res.json({
-      success: true,
-      message: 'Pedido marcado como enviado',
-      data: pedidoAtualizado,
-    });
-  } catch (error) {
-    logger.error('Erro ao marcar pedido como enviado:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao marcar pedido como enviado',
-    });
-  }
-};
-
-// Marcar como entregue (Admin/Operador)
-export const marcarComoEntregue = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const pedido = await prisma.pedidoB2B.findUnique({
-      where: { id },
-    });
-
-    if (!pedido) {
-      return res.status(404).json({
-        success: false,
-        message: 'Pedido não encontrado',
-      });
-    }
-
-    if (pedido.status !== 'ENVIADA') {
-      return res.status(400).json({
-        success: false,
-        message: 'Apenas pedidos enviados podem ser marcados como entregues',
-      });
-    }
-
-    const pedidoAtualizado = await prisma.pedidoB2B.update({
-      where: { id },
-      data: {
-        status: 'ENTREGUE',
-        dataEntrega: new Date(),
-      },
-      include: {
-        cliente: true,
-        items: {
-          include: {
-            produto: true,
-            cor: true,
-          },
-        },
-      },
-    });
-
-    // Log de auditoria
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'UPDATE',
-        entity: 'PedidoB2B',
-        entityId: id,
-        newData: JSON.stringify({ status: 'ENTREGUE' }),
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      },
-    });
-
-    logger.info(`Pedido entregue: ${pedidoAtualizado.numero} por ${req.user.email}`);
-
-    res.json({
-      success: true,
-      message: 'Pedido marcado como entregue',
-      data: pedidoAtualizado,
-    });
-  } catch (error) {
-    logger.error('Erro ao marcar pedido como entregue:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao marcar pedido como entregue',
-    });
-  }
-};
-
 // Cancelar pedido (Admin/Cliente antes de aprovação)
 export const cancelarPedido = async (req, res) => {
   try {
@@ -782,3 +573,363 @@ export const cancelarPedido = async (req, res) => {
     });
   }
 };
+
+// Criar pedido B2B público (sem autenticação - usado no checkout)
+export const createPedidoPublico = async (req, res) => {
+  try {
+    const { clienteId, items, observacoes, enderecoEntrega, formaPagamento, valorTotal } = req.body;
+
+    // Validações básicas
+    if (!clienteId) {
+      return res.status(400).json({
+        success: false,
+        message: 'clienteId é obrigatório'
+      });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'É necessário incluir pelo menos um item no pedido',
+      });
+    }
+
+    if (!enderecoEntrega) {
+      return res.status(400).json({
+        success: false,
+        message: 'Endereço de entrega é obrigatório',
+      });
+    }
+
+    if (!formaPagamento) {
+      return res.status(400).json({
+        success: false,
+        message: 'Forma de pagamento é obrigatória',
+      });
+    }
+
+    // Verificar se cliente existe e está aprovado
+    const cliente = await prisma.clienteB2B.findUnique({
+      where: { id: clienteId },
+    });
+
+    if (!cliente) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cliente não encontrado',
+      });
+    }
+
+    if (!cliente.aprovado) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cliente ainda não foi aprovado',
+      });
+    }
+
+    // Validar quantidades (múltiplos de 60m)
+    const validacaoQtd = validarQuantidades(items);
+    if (!validacaoQtd.valido) {
+      return res.status(400).json({
+        success: false,
+        message: validacaoQtd.mensagem,
+      });
+    }
+
+    // Validar que todos os itens têm preço unitário
+    for (const item of items) {
+      if (!item.precoUnitario || parseFloat(item.precoUnitario) <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Todos os itens devem ter preço unitário informado',
+        });
+      }
+    }
+
+    // Calcular valor total
+    const valorTotalCalculado = calcularValorTotal(items);
+
+    // Gerar número do pedido
+    const numero = await gerarNumeroPedido();
+
+    // Criar pedido com status AGUARDANDO_APROVACAO
+    const pedido = await prisma.pedidoB2B.create({
+      data: {
+        numero,
+        clienteId,
+        userId: clienteId, // Temporariamente igual ao clienteId
+        status: 'AGUARDANDO_APROVACAO',
+        valorTotal: valorTotalCalculado.toString(),
+        observacoes,
+        enderecoEntrega,
+        formaPagamento,
+        prazoEntrega: 15, // 15 dias corridos
+        items: {
+          create: items.map((item) => ({
+            produtoId: item.produtoId,
+            corId: item.corId,
+            quantidade: item.quantidade,
+            precoUnitario: item.precoUnitario.toString(),
+            subtotal: (parseFloat(item.precoUnitario) * item.quantidade).toString(),
+          })),
+        },
+      },
+      include: {
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+        },
+        cliente: true,
+      },
+    });
+
+    logger.info(`Pedido B2B criado (público): ${pedido.numero} - Cliente: ${cliente.razaoSocial}`);
+
+    res.status(201).json({
+      success: true,
+      data: pedido,
+      message: 'Pedido criado com sucesso! Aguardando aprovação da equipe.',
+    });
+  } catch (error) {
+    logger.error('Erro ao criar pedido B2B público:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao criar pedido',
+    });
+  }
+};
+
+// Confirmar pagamento (Admin) - Muda status de AGUARDANDO_PAGAMENTO para PAGO
+export const confirmarPagamento = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const pedido = await prisma.pedidoB2B.findUnique({
+      where: { id },
+    });
+
+    if (!pedido) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido não encontrado',
+      });
+    }
+
+    if (pedido.status !== 'AGUARDANDO_PAGAMENTO') {
+      return res.status(400).json({
+        success: false,
+        message: `Pedido não está aguardando pagamento. Status atual: ${pedido.status}`,
+      });
+    }
+
+    // Calcular data de entrega: 15 dias a partir de hoje
+    const dataPrevisaoEntrega = new Date();
+    dataPrevisaoEntrega.setDate(dataPrevisaoEntrega.getDate() + 15);
+
+    const pedidoAtualizado = await prisma.pedidoB2B.update({
+      where: { id },
+      data: {
+        status: 'PAGO',
+        dataPagamentoConfirmado: new Date(),
+        dataPrevisaoEntrega,
+      },
+      include: {
+        cliente: true,
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+        },
+      },
+    });
+
+    logger.info(`Pagamento confirmado: ${pedidoAtualizado.numero} - Previsão de entrega: ${dataPrevisaoEntrega.toISOString().split('T')[0]}`);
+
+    res.json({
+      success: true,
+      data: pedidoAtualizado,
+      message: `Pagamento confirmado! Prazo de entrega: ${dataPrevisaoEntrega.toLocaleDateString('pt-BR')}`,
+    });
+  } catch (error) {
+    logger.error('Erro ao confirmar pagamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao confirmar pagamento',
+    });
+  }
+};
+
+// Iniciar separação do pedido (Admin/Operador)
+export const iniciarSeparacao = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const pedido = await prisma.pedidoB2B.findUnique({
+      where: { id },
+    });
+
+    if (!pedido) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido não encontrado',
+      });
+    }
+
+    if (pedido.status !== 'PAGO') {
+      return res.status(400).json({
+        success: false,
+        message: `Pedido não está pago. Status atual: ${pedido.status}`,
+      });
+    }
+
+    const pedidoAtualizado = await prisma.pedidoB2B.update({
+      where: { id },
+      data: {
+        status: 'EM_SEPARACAO',
+      },
+      include: {
+        cliente: true,
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+        },
+      },
+    });
+
+    logger.info(`Separação iniciada: ${pedidoAtualizado.numero}`);
+
+    res.json({
+      success: true,
+      data: pedidoAtualizado,
+      message: 'Separação do pedido iniciada',
+    });
+  } catch (error) {
+    logger.error('Erro ao iniciar separação:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao iniciar separação',
+    });
+  }
+};
+
+// Marcar pedido como enviado (Admin/Operador)
+export const marcarComoEnviado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { numeroNFe, chaveNFe } = req.body;
+
+    const pedido = await prisma.pedidoB2B.findUnique({
+      where: { id },
+    });
+
+    if (!pedido) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido não encontrado',
+      });
+    }
+
+    if (pedido.status !== 'EM_SEPARACAO') {
+      return res.status(400).json({
+        success: false,
+        message: `Pedido não está em separação. Status atual: ${pedido.status}`,
+      });
+    }
+
+    const pedidoAtualizado = await prisma.pedidoB2B.update({
+      where: { id },
+      data: {
+        status: 'ENVIADO',
+        dataEnvio: new Date(),
+        numeroNFe,
+        chaveNFe,
+        dataEmissaoNFe: new Date(),
+      },
+      include: {
+        cliente: true,
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+        },
+      },
+    });
+
+    logger.info(`Pedido enviado: ${pedidoAtualizado.numero} - NFe: ${numeroNFe}`);
+
+    res.json({
+      success: true,
+      data: pedidoAtualizado,
+      message: 'Pedido marcado como enviado',
+    });
+  } catch (error) {
+    logger.error('Erro ao marcar como enviado:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao marcar pedido como enviado',
+    });
+  }
+};
+
+// Marcar pedido como entregue (Admin/Operador)
+export const marcarComoEntregue = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const pedido = await prisma.pedidoB2B.findUnique({
+      where: { id },
+    });
+
+    if (!pedido) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido não encontrado',
+      });
+    }
+
+    if (pedido.status !== 'ENVIADO') {
+      return res.status(400).json({
+        success: false,
+        message: `Pedido não foi enviado. Status atual: ${pedido.status}`,
+      });
+    }
+
+    const pedidoAtualizado = await prisma.pedidoB2B.update({
+      where: { id },
+      data: {
+        status: 'ENTREGUE',
+        dataEntrega: new Date(),
+      },
+      include: {
+        cliente: true,
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+        },
+      },
+    });
+
+    logger.info(`Pedido entregue: ${pedidoAtualizado.numero}`);
+
+    res.json({
+      success: true,
+      data: pedidoAtualizado,
+      message: 'Pedido marcado como entregue',
+    });
+  } catch (error) {
+    logger.error('Erro ao marcar como entregue:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao marcar pedido como entregue',
+    });
+  }
+};
+

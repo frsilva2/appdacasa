@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, ShoppingCart, Clock, CheckCircle, XCircle, Package, Truck, AlertCircle } from 'lucide-react';
+import { Plus, ShoppingCart, Clock, CheckCircle, XCircle, Package, Truck, AlertCircle, DollarSign } from 'lucide-react';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
@@ -7,6 +7,8 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import NovoPedidoModal from './NovoPedidoModal';
 import DetalhesPedidoModal from './DetalhesPedidoModal';
 import GerenciarPedidoModal from './GerenciarPedidoModal';
+import AprovarPedidoModal from './AprovarPedidoModal';
+import ConfirmarPagamentoModal from './ConfirmarPagamentoModal';
 
 const PedidosB2BPage = () => {
   const { user } = useAuth();
@@ -16,6 +18,8 @@ const PedidosB2BPage = () => {
   const [showNovoModal, setShowNovoModal] = useState(false);
   const [showDetalhesModal, setShowDetalhesModal] = useState(false);
   const [showGerenciarModal, setShowGerenciarModal] = useState(false);
+  const [showAprovarModal, setShowAprovarModal] = useState(false);
+  const [showConfirmarPagamentoModal, setShowConfirmarPagamentoModal] = useState(false);
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
 
   const isClienteB2B = user?.type === 'CLIENTE_B2B';
@@ -45,16 +49,18 @@ const PedidosB2BPage = () => {
 
   const getStatusBadge = (status) => {
     const badges = {
-      PENDENTE: { label: 'Pendente', class: 'bg-yellow-100 text-yellow-800', icon: Clock },
-      APROVADA: { label: 'Aprovada', class: 'bg-green-100 text-green-800', icon: CheckCircle },
-      RECUSADA: { label: 'Recusada', class: 'bg-red-100 text-red-800', icon: XCircle },
-      EM_SEPARACAO: { label: 'Em Separação', class: 'bg-blue-100 text-blue-800', icon: Package },
-      ENVIADA: { label: 'Enviada', class: 'bg-purple-100 text-purple-800', icon: Truck },
+      AGUARDANDO_APROVACAO: { label: 'Aguardando Aprovação', class: 'bg-yellow-100 text-yellow-800', icon: Clock },
+      APROVADO: { label: 'Aprovado', class: 'bg-green-100 text-green-800', icon: CheckCircle },
+      RECUSADO: { label: 'Recusado', class: 'bg-red-100 text-red-800', icon: XCircle },
+      AGUARDANDO_PAGAMENTO: { label: 'Aguardando Pagamento', class: 'bg-blue-100 text-blue-800', icon: DollarSign },
+      PAGO: { label: 'Pago', class: 'bg-green-100 text-green-800', icon: CheckCircle },
+      EM_SEPARACAO: { label: 'Em Separação', class: 'bg-purple-100 text-purple-800', icon: Package },
+      ENVIADO: { label: 'Enviado', class: 'bg-indigo-100 text-indigo-800', icon: Truck },
       ENTREGUE: { label: 'Entregue', class: 'bg-teal-100 text-teal-800', icon: CheckCircle },
-      CANCELADA: { label: 'Cancelada', class: 'bg-gray-100 text-gray-800', icon: XCircle },
+      CANCELADO: { label: 'Cancelado', class: 'bg-gray-100 text-gray-800', icon: XCircle },
     };
 
-    const badge = badges[status] || badges.PENDENTE;
+    const badge = badges[status] || badges.AGUARDANDO_APROVACAO;
     const Icon = badge.icon;
 
     return (
@@ -73,6 +79,16 @@ const PedidosB2BPage = () => {
   const handleGerenciar = (pedido) => {
     setPedidoSelecionado(pedido);
     setShowGerenciarModal(true);
+  };
+
+  const handleAprovar = (pedido) => {
+    setPedidoSelecionado(pedido);
+    setShowAprovarModal(true);
+  };
+
+  const handleConfirmarPagamento = (pedido) => {
+    setPedidoSelecionado(pedido);
+    setShowConfirmarPagamentoModal(true);
   };
 
   const handleCancelar = async (pedido) => {
@@ -127,13 +143,15 @@ const PedidosB2BPage = () => {
               className="input"
             >
               <option value="">Todos</option>
-              <option value="PENDENTE">Pendente</option>
-              <option value="APROVADA">Aprovada</option>
-              <option value="RECUSADA">Recusada</option>
+              <option value="AGUARDANDO_APROVACAO">Aguardando Aprovação</option>
+              <option value="APROVADO">Aprovado</option>
+              <option value="RECUSADO">Recusado</option>
+              <option value="AGUARDANDO_PAGAMENTO">Aguardando Pagamento</option>
+              <option value="PAGO">Pago</option>
               <option value="EM_SEPARACAO">Em Separação</option>
-              <option value="ENVIADA">Enviada</option>
+              <option value="ENVIADO">Enviado</option>
               <option value="ENTREGUE">Entregue</option>
-              <option value="CANCELADA">Cancelada</option>
+              <option value="CANCELADO">Cancelado</option>
             </select>
           </div>
         </div>
@@ -255,7 +273,30 @@ const PedidosB2BPage = () => {
                     Ver Detalhes
                   </button>
 
-                  {podeGerenciar && pedido.status !== 'CANCELADA' && pedido.status !== 'ENTREGUE' && (
+                  {/* Botão de Aprovar (Admin) - Status AGUARDANDO_APROVACAO */}
+                  {isAdmin && pedido.status === 'AGUARDANDO_APROVACAO' && (
+                    <button
+                      onClick={() => handleAprovar(pedido)}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                      <CheckCircle size={16} />
+                      Aprovar Pedido
+                    </button>
+                  )}
+
+                  {/* Botão de Confirmar Pagamento (Admin) - Status AGUARDANDO_PAGAMENTO */}
+                  {isAdmin && pedido.status === 'AGUARDANDO_PAGAMENTO' && (
+                    <button
+                      onClick={() => handleConfirmarPagamento(pedido)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                      <DollarSign size={16} />
+                      Confirmar Pagamento
+                    </button>
+                  )}
+
+                  {/* Botão de Gerenciar (Admin/Operador) - Outros status */}
+                  {podeGerenciar && ['PAGO', 'EM_SEPARACAO', 'ENVIADO'].includes(pedido.status) && (
                     <button
                       onClick={() => handleGerenciar(pedido)}
                       className="btn-primary text-sm"
@@ -265,7 +306,8 @@ const PedidosB2BPage = () => {
                     </button>
                   )}
 
-                  {isClienteB2B && pedido.status === 'PENDENTE' && (
+                  {/* Botão de Cancelar (Cliente) - Status AGUARDANDO_APROVACAO */}
+                  {isClienteB2B && pedido.status === 'AGUARDANDO_APROVACAO' && (
                     <button
                       onClick={() => handleCancelar(pedido)}
                       className="btn-secondary text-sm text-red-600"
@@ -311,6 +353,36 @@ const PedidosB2BPage = () => {
           }}
           onSuccess={() => {
             setShowGerenciarModal(false);
+            setPedidoSelecionado(null);
+            carregarPedidos();
+          }}
+        />
+      )}
+
+      {showAprovarModal && pedidoSelecionado && (
+        <AprovarPedidoModal
+          pedido={pedidoSelecionado}
+          onClose={() => {
+            setShowAprovarModal(false);
+            setPedidoSelecionado(null);
+          }}
+          onSuccess={() => {
+            setShowAprovarModal(false);
+            setPedidoSelecionado(null);
+            carregarPedidos();
+          }}
+        />
+      )}
+
+      {showConfirmarPagamentoModal && pedidoSelecionado && (
+        <ConfirmarPagamentoModal
+          pedido={pedidoSelecionado}
+          onClose={() => {
+            setShowConfirmarPagamentoModal(false);
+            setPedidoSelecionado(null);
+          }}
+          onSuccess={() => {
+            setShowConfirmarPagamentoModal(false);
             setPedidoSelecionado(null);
             carregarPedidos();
           }}

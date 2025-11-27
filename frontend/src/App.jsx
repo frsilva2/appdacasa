@@ -26,6 +26,10 @@ import PedidosB2BPage from './pages/pedidos-b2b/PedidosB2BPage';
 // App 4: Inventário
 import InventarioPage from './pages/inventario/InventarioPage';
 
+// Páginas Públicas B2B
+import LojaB2BPage from './pages/public/LojaB2BPage';
+import CheckoutB2BPage from './pages/public/CheckoutB2BPage';
+
 function App() {
   return (
     <AuthProvider>
@@ -33,6 +37,8 @@ function App() {
         {/* Rotas públicas */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cotacao/:token" element={<FornecedorCotacaoPage />} />
+        <Route path="/loja-b2b" element={<LojaB2BPage />} />
+        <Route path="/checkout-b2b" element={<CheckoutB2BPage />} />
 
         {/* Rotas protegidas */}
         <Route
