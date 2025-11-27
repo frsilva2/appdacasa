@@ -283,12 +283,14 @@ const ProdutoCard = ({ produto, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-8 cursor-pointer transform hover:scale-105 transition-transform"
+      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 cursor-pointer transform hover:scale-105 transition-transform h-[380px] flex flex-col justify-center"
     >
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* Info do Produto */}
         <div className="text-center">
-          <h3 className="font-bold text-2xl mb-2">{produto.nome}</h3>
+          <h3 className="font-bold text-2xl mb-2 h-[80px] flex items-center justify-center leading-tight">
+            {produto.nome}
+          </h3>
           <p className="text-sm text-gray-600 mb-4">Código: {produto.codigo}</p>
           <div className="bg-primary text-white rounded-lg py-4 px-6 inline-block">
             <span className="text-3xl font-bold">R$ {parseFloat(produto.precoAtacado).toFixed(2)}</span>
@@ -298,7 +300,7 @@ const ProdutoCard = ({ produto, onClick }) => {
 
         {/* Botão */}
         <button className="btn-primary w-full py-3 text-lg">
-          Ver Cores e Selecionar
+          Selecionar Cores
         </button>
       </div>
     </div>
@@ -309,10 +311,10 @@ const ProdutoCard = ({ produto, onClick }) => {
 const ModalProduto = ({ produto, onClose, onAdicionarAoCarrinho, getColorImageUrl }) => {
   const [selecoes, setSelecoes] = useState({});
 
-  // Extrair código de 3 dígitos do arquivo de imagem
+  // Extrair código do arquivo de imagem (formato: nomedacor_CODIGO.jpg)
   const extrairCodigoCor = (arquivoImagem) => {
     if (!arquivoImagem) return '';
-    const match = arquivoImagem.match(/^(\d{3})/);
+    const match = arquivoImagem.match(/_(\d+)\./);
     return match ? match[1] : '';
   };
 
@@ -400,9 +402,10 @@ const ModalProduto = ({ produto, onClose, onAdicionarAoCarrinho, getColorImageUr
                   </div>
 
                   {/* Nome da cor com código */}
-                  <p className="text-sm font-medium text-center mb-3" title={`${codigoCor} - ${cor.nome}`}>
-                    <span className="font-bold text-primary">{codigoCor}</span> {cor.nome}
-                  </p>
+                  <div className="text-center mb-3">
+                    <p className="text-sm font-medium" title={cor.nome}>{cor.nome}</p>
+                    {codigoCor && <p className="text-lg font-bold text-primary">{codigoCor}</p>}
+                  </div>
 
                   {/* Controles de quantidade */}
                   <div className="flex items-center justify-between gap-2">
