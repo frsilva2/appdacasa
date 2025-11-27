@@ -105,6 +105,12 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
     return match ? match[1] : null;
   };
 
+  // Obter URL da imagem da cor (servida pelo backend)
+  const getColorImageUrl = (arquivoImagem) => {
+    if (!arquivoImagem) return null;
+    return `http://localhost:5000/assets/cores/fotos/${arquivoImagem}`;
+  };
+
   const selecionarTodasCores = () => {
     const nomesExistentes = new Set(coresDoProduct.map(c => c.nome));
     const coresFaltantes = coresDisponiveis
@@ -170,7 +176,7 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                           {cor.arquivoImagem && (
                             <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                               <img
-                                src={`/Emporio-Tecidos-Assets/cores/fotos/${cor.arquivoImagem}`}
+                                src={getColorImageUrl(cor.arquivoImagem)}
                                 alt={cor.nome}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -270,7 +276,7 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                           {cor.arquivoImagem && (
                             <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                               <img
-                                src={`/Emporio-Tecidos-Assets/cores/fotos/${cor.arquivoImagem}`}
+                                src={getColorImageUrl(cor.arquivoImagem)}
                                 alt={cor.nome}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
