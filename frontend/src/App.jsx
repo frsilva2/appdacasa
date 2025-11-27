@@ -11,12 +11,14 @@ import NotFoundPage from './pages/NotFoundPage';
 import UsersPage from './pages/admin/UsersPage';
 import LojasPage from './pages/admin/LojasPage';
 import ProdutosPage from './pages/admin/ProdutosPage';
+import CoresPage from './pages/admin/CoresPage';
 
 // App 1: Requisição de Abastecimento
 import RequisicoesAbastecimentoPage from './pages/requisicoes/RequisicoesAbastecimentoPage';
 
 // App 2: Cotações
 import CotacoesPage from './pages/cotacoes/CotacoesPage';
+import FornecedorCotacaoPage from './pages/cotacoes/FornecedorCotacaoPage';
 
 // App 3: Pedidos B2B
 import PedidosB2BPage from './pages/pedidos-b2b/PedidosB2BPage';
@@ -30,6 +32,7 @@ function App() {
       <Routes>
         {/* Rotas públicas */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/cotacao/:token" element={<FornecedorCotacaoPage />} />
 
         {/* Rotas protegidas */}
         <Route
@@ -63,6 +66,14 @@ function App() {
           element={
             <ProtectedRoute allowedTypes={['ADMIN']}>
               <ProdutosPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cores"
+          element={
+            <ProtectedRoute allowedTypes={['ADMIN']}>
+              <CoresPage />
             </ProtectedRoute>
           }
         />

@@ -42,15 +42,15 @@ enum CotacaoStatus {
 }
 
 enum PedidoB2BStatus {
-  SOLICITADO
-  APROVADO
-  RECUSADO
-  AGUARDANDO_PAGAMENTO
-  PAGO
-  EM_PRODUCAO
-  ENVIADO
-  ENTREGUE
-  CANCELADO
+  AGUARDANDO_APROVACAO  // Cliente criou pedido, aguarda aprovação de disponibilidade
+  APROVADO              // Admin aprovou disponibilidade
+  RECUSADO              // Admin recusou (sem estoque)
+  AGUARDANDO_PAGAMENTO  // Aprovado, aguardando pagamento do cliente
+  PAGO                  // Pagamento confirmado, prazo de entrega iniciado
+  EM_SEPARACAO          // Pedido em separação no CD
+  ENVIADO               // Pedido enviado para entrega
+  ENTREGUE              // Pedido entregue ao cliente
+  CANCELADO             // Pedido cancelado
 }
 
 enum CurvaABC {
@@ -516,30 +516,32 @@ model ClienteB2B {
 }
 
 model PedidoB2B {
-  id                 String          @id @default(uuid())
-  numero             String          @unique // PED-2024-0001
-  status             PedidoB2BStatus @default(SOLICITADO)
+  id                      String          @id @default(uuid())
+  numero                  String          @unique // PED-2024-0001
+  status                  PedidoB2BStatus @default(AGUARDANDO_APROVACAO)
 
-  clienteId          String
-  cliente            ClienteB2B      @relation(fields: [clienteId], references: [id])
+  clienteId               String
+  cliente                 ClienteB2B      @relation(fields: [clienteId], references: [id])
 
   // Valores
-  valorTotal         Decimal         @db.Decimal(10, 2)
-  valorFrete         Decimal         @default(0) @db.Decimal(10, 2) // Grátis
+  valorTotal              Decimal         @db.Decimal(10, 2)
+  valorFrete              Decimal         @default(0) @db.Decimal(10, 2) // Grátis
 
   // Pagamento
-  formaPagamento     String?         // CREDITO_4X, PIX, DINHEIRO
-  linkPagamento      String?         @db.Text
-  pagoEm             DateTime?
+  formaPagamento          String?         // CREDITO_4X, PIX, DINHEIRO
+  linkPagamento           String?         @db.Text
+  pagoEm                  DateTime?       // Data que o cliente pagou (informada pelo admin)
+  dataPagamentoConfirmado DateTime?       // Data que o admin confirmou o pagamento
 
   // Entrega
-  lojaDestinoId      String?
-  lojaDestino        Loja?           @relation(fields: [lojaDestinoId], references: [id])
+  lojaDestinoId           String?
+  lojaDestino             Loja?           @relation(fields: [lojaDestinoId], references: [id])
 
-  enderecoEntrega    String?         @db.Text
-  prazoEntrega       Int             @default(15) // dias
-  dataEnvio          DateTime?
-  dataEntrega        DateTime?
+  enderecoEntrega         String?         @db.Text
+  prazoEntrega            Int             @default(15) // dias
+  dataPrevisaoEntrega     DateTime?       // Calculado quando pagamento é confirmado
+  dataEnvio               DateTime?
+  dataEntrega             DateTime?
 
   // NFe
   numeroNFe          String?

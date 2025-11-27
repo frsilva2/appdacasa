@@ -2,17 +2,15 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copiar package.json
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci
+RUN npm install
 
 # Copiar código fonte
 COPY . .
 
-# Expor porta
 EXPOSE 5173
 
-# Comando padrão (pode ser sobrescrito no docker-compose)
 CMD ["npm", "run", "dev", "--", "--host"]

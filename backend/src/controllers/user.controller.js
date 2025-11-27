@@ -14,9 +14,6 @@ export const getAllUsers = async (req, res) => {
 
     const users = await prisma.user.findMany({
       where,
-      include: {
-        loja: true,
-      },
       select: {
         id: true,
         email: true,
@@ -24,7 +21,13 @@ export const getAllUsers = async (req, res) => {
         type: true,
         telefone: true,
         lojaId: true,
-        loja: true,
+        loja: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+          },
+        },
         active: true,
         createdAt: true,
         updatedAt: true,
@@ -54,9 +57,6 @@ export const getUserById = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
-        loja: true,
-      },
       select: {
         id: true,
         email: true,
@@ -64,7 +64,13 @@ export const getUserById = async (req, res) => {
         type: true,
         telefone: true,
         lojaId: true,
-        loja: true,
+        loja: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+          },
+        },
         active: true,
         createdAt: true,
         updatedAt: true,
@@ -136,9 +142,6 @@ export const createUser = async (req, res) => {
         telefone,
         lojaId,
       },
-      include: {
-        loja: true,
-      },
       select: {
         id: true,
         email: true,
@@ -146,7 +149,13 @@ export const createUser = async (req, res) => {
         type: true,
         telefone: true,
         lojaId: true,
-        loja: true,
+        loja: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+          },
+        },
         active: true,
         createdAt: true,
       },
@@ -224,9 +233,6 @@ export const updateUser = async (req, res) => {
         ...(lojaId !== undefined && { lojaId }),
         ...(active !== undefined && { active }),
       },
-      include: {
-        loja: true,
-      },
       select: {
         id: true,
         email: true,
@@ -234,7 +240,13 @@ export const updateUser = async (req, res) => {
         type: true,
         telefone: true,
         lojaId: true,
-        loja: true,
+        loja: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+          },
+        },
         active: true,
         createdAt: true,
         updatedAt: true,

@@ -61,6 +61,11 @@
     @apply bg-red-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-600 active:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] text-base;
   }
 
+  /* Botão de sucesso */
+  .btn-success {
+    @apply bg-green-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-green-600 active:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] text-base;
+  }
+
   /* Card */
   .card {
     @apply bg-white rounded-xl shadow-soft p-6 border border-gray-100;
@@ -214,7 +219,7 @@
 }
 
 .spinner {
-  @apply inline-block w-6 h-6 border-3 border-current border-t-transparent rounded-full;
+  @apply inline-block w-6 h-6 border-4 border-current border-t-transparent rounded-full;
   animation: spin 0.6s linear infinite;
 }
 
@@ -238,3 +243,4 @@
 .toast-info {
   @apply border-l-4 border-blue-500;
 }
+

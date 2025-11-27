@@ -1,81 +1,56 @@
 version: '3.8'
 
 services:
-  # MySQL Database
   mysql:
     image: mysql:8.0
     container_name: emporio-tecidos-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123}
-      MYSQL_DATABASE: ${DB_NAME:-emporio_tecidos}
-      MYSQL_USER: ${DB_USER:-emporio}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-emporio123}
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: emporio_tecidos
+      MYSQL_USER: emporio
+      MYSQL_PASSWORD: emporio123
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/init:/docker-entrypoint-initdb.d
-    networks:
-      - emporio-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: emporio-tecidos-backend
     restart: unless-stopped
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: ${BACKEND_PORT:-5000}
-      DATABASE_URL: mysql://${DB_USER:-emporio}:${DB_PASSWORD:-emporio123}@mysql:3306/${DB_NAME:-emporio_tecidos}
-      JWT_SECRET: ${JWT_SECRET:-emporio-tecidos-secret-key-change-in-production}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
-      - "${BACKEND_PORT:-5000}:5000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - uploads:/app/uploads
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=mysql://emporio:emporio123@mysql:3306/emporio_tecidos
     depends_on:
       mysql:
         condition: service_healthy
-    networks:
-      - emporio-network
-    command: npm run dev
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
 
-  # Frontend React
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: emporio-tecidos-frontend
     restart: unless-stopped
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api}
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    depends_on:
-      - backend
-    networks:
-      - emporio-network
-    command: npm run dev
 
 volumes:
   mysql_data:
-    driver: local
-  uploads:
-    driver: local
-
-networks:
-  emporio-network:
-    driver: bridge

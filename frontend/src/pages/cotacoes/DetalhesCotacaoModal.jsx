@@ -1,6 +1,8 @@
-import { X, Calendar, User, Clock, Package, DollarSign, TrendingUp, TrendingDown, Link as LinkIcon, MessageCircle, Check, XCircle, Edit } from 'lucide-react';
+import { useState } from 'react';
+import { X, Calendar, User, Clock, Package, DollarSign, TrendingUp, TrendingDown, Link as LinkIcon, MessageCircle, Check, XCircle, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 
 const DetalhesCotacaoModal = ({ cotacao, onClose, onConcluir, onCancelar, onEditar }) => {
+  const [linksExpanded, setLinksExpanded] = useState(false);
   const prazoExpirado = new Date(cotacao.prazoResposta) < new Date();
 
   const copiarLink = (link) => {
@@ -137,52 +139,70 @@ const DetalhesCotacaoModal = ({ cotacao, onClose, onConcluir, onCancelar, onEdit
             </div>
           )}
 
-          {/* Links para Fornecedores */}
+          {/* Links para Fornecedores - Seção Minimizável */}
           {cotacao.tokens && cotacao.tokens.length > 0 && (
             <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
-              <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <LinkIcon size={20} />
-                Links para Fornecedores
-              </h3>
-              <div className="space-y-2">
-                {cotacao.tokens.map((token) => {
-                  const link = `${window.location.origin}/cotacao/${token.token}`;
-                  return (
-                    <div key={token.id} className="flex items-center justify-between p-3 bg-white rounded border border-blue-200">
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900">{token.fornecedor.nome}</p>
-                        <p className="text-sm text-gray-600">{token.fornecedor.email}</p>
-                        {token.respondido && (
-                          <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded mt-1">
-                            <Check size={12} />
-                            Respondido em {new Date(token.dataResposta).toLocaleDateString('pt-BR')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => copiarLink(link)}
-                          className="btn-secondary flex items-center gap-1 text-sm px-3 py-2"
-                          title="Copiar link"
-                        >
-                          <LinkIcon size={16} />
-                          Copiar
-                        </button>
-                        {token.fornecedor.telefone && (
-                          <button
-                            onClick={() => enviarWhatsApp(token.fornecedor.telefone, link)}
-                            className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-1 text-sm px-3 py-2 rounded transition-colors"
-                            title="Enviar por WhatsApp"
-                          >
-                            <MessageCircle size={16} />
-                            WhatsApp
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setLinksExpanded(!linksExpanded)}
+              >
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <LinkIcon size={20} />
+                  Links para Fornecedores
+                  <span className="text-sm font-normal text-gray-600">
+                    ({cotacao.tokens.length} fornecedor{cotacao.tokens.length > 1 ? 'es' : ''})
+                  </span>
+                </h3>
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-100 transition-colors"
+                  title={linksExpanded ? 'Minimizar' : 'Expandir'}
+                >
+                  {linksExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
               </div>
+
+              {linksExpanded && (
+                <div className="space-y-2 mt-3 animate-fadeIn">
+                  {cotacao.tokens.map((token) => {
+                    const link = `${window.location.origin}/cotacao/${token.token}`;
+                    return (
+                      <div key={token.id} className="flex items-center justify-between p-3 bg-white rounded border border-blue-200">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{token.fornecedor.nome}</p>
+                          <p className="text-sm text-gray-600">{token.fornecedor.email}</p>
+                          {token.respondido && (
+                            <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded mt-1">
+                              <Check size={12} />
+                              Respondido em {new Date(token.dataResposta).toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => copiarLink(link)}
+                            className="btn-secondary flex items-center gap-1 text-sm px-3 py-2"
+                            title="Copiar link"
+                          >
+                            <LinkIcon size={16} />
+                            Copiar
+                          </button>
+                          {token.fornecedor.telefone && (
+                            <button
+                              onClick={() => enviarWhatsApp(token.fornecedor.telefone, link)}
+                              className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-1 text-sm px-3 py-2 rounded transition-colors"
+                              title="Enviar por WhatsApp"
+                            >
+                              <MessageCircle size={16} />
+                              WhatsApp
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

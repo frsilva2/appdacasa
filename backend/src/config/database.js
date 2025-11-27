@@ -31,7 +31,8 @@ async function testConnection() {
     logger.info('✅ Conexão com o banco de dados estabelecida');
   } catch (error) {
     logger.error('❌ Erro ao conectar com o banco de dados:', error);
-    process.exit(1);
+    logger.warn('⚠️ Servidor continuará rodando sem conexão com banco (modo desenvolvimento)');
+    // process.exit(1); // Comentado temporariamente para testes de assets
   }
 }
 

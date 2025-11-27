@@ -104,9 +104,6 @@ export const me = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      include: {
-        loja: true,
-      },
       select: {
         id: true,
         email: true,
@@ -114,7 +111,14 @@ export const me = async (req, res) => {
         type: true,
         telefone: true,
         lojaId: true,
-        loja: true,
+        loja: {
+          select: {
+            id: true,
+            nome: true,
+            codigo: true,
+            prioridade: true,
+          },
+        },
         active: true,
         createdAt: true,
       },
