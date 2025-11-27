@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Package, Tag } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Package, Tag, Palette } from 'lucide-react';
 import Layout from '../../components/Layout';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import CriarEditarProdutoModal from './CriarEditarProdutoModal';
+import GerenciarCoresModal from './GerenciarCoresModal';
 
 const ProdutosPage = () => {
   const [produtos, setProdutos] = useState([]);
@@ -10,6 +12,11 @@ const ProdutosPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [curvaFilter, setCurvaFilter] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState('');
+
+  // Modals
+  const [showCriarEditarModal, setShowCriarEditarModal] = useState(false);
+  const [showGerenciarCoresModal, setShowGerenciarCoresModal] = useState(false);
+  const [produtoSelecionado, setProdutoSelecionado] = useState(null);
 
   useEffect(() => {
     carregarProdutos();
@@ -35,6 +42,36 @@ const ProdutosPage = () => {
 
   const handleSearch = () => {
     carregarProdutos();
+  };
+
+  const handleNovoProduto = () => {
+    setProdutoSelecionado(null);
+    setShowCriarEditarModal(true);
+  };
+
+  const handleEditarProduto = (produto) => {
+    setProdutoSelecionado(produto);
+    setShowCriarEditarModal(true);
+  };
+
+  const handleGerenciarCores = (produto) => {
+    setProdutoSelecionado(produto);
+    setShowGerenciarCoresModal(true);
+  };
+
+  const handleDeletarProduto = async (produto) => {
+    if (!confirm(`Tem certeza que deseja excluir o produto "${produto.nome}"?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/produtos/${produto.id}`);
+      alert('Produto excluído com sucesso!');
+      carregarProdutos();
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error);
+      alert(error.response?.data?.message || 'Erro ao excluir produto');
+    }
   };
 
   const getCurvaBadge = (curva) => {
@@ -72,7 +109,7 @@ const ProdutosPage = () => {
           </div>
 
           <button
-            onClick={() => alert('Função de adicionar produto em desenvolvimento')}
+            onClick={handleNovoProduto}
             className="btn-primary flex items-center gap-2"
           >
             <Plus size={20} />
@@ -207,10 +244,15 @@ const ProdutosPage = () => {
                         {getCurvaBadge(produto.curva)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Tag size={16} className="text-gray-400" />
-                          <span className="text-sm text-gray-900">{produto.cores?.length || 0} cores</span>
-                        </div>
+                        <button
+                          onClick={() => handleGerenciarCores(produto)}
+                          className="flex items-center gap-2 hover:text-primary transition-colors"
+                        >
+                          <Palette size={16} className="text-gray-400" />
+                          <span className="text-sm text-gray-900 font-medium">
+                            {produto.cores?.length || 0} cores
+                          </span>
+                        </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -224,18 +266,14 @@ const ProdutosPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => alert(`Editar produto ${produto.nome}`)}
+                          onClick={() => handleEditarProduto(produto)}
                           className="text-primary hover:text-primary-dark mr-3"
                           title="Editar"
                         >
                           <Edit size={18} />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Tem certeza que deseja excluir ${produto.nome}?`)) {
-                              alert('Função de excluir em desenvolvimento');
-                            }
-                          }}
+                          onClick={() => handleDeletarProduto(produto)}
                           className="text-red-600 hover:text-red-900"
                           title="Excluir"
                         >
@@ -297,6 +335,35 @@ const ProdutosPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showCriarEditarModal && (
+        <CriarEditarProdutoModal
+          produto={produtoSelecionado}
+          onClose={() => {
+            setShowCriarEditarModal(false);
+            setProdutoSelecionado(null);
+          }}
+          onSuccess={() => {
+            setShowCriarEditarModal(false);
+            setProdutoSelecionado(null);
+            carregarProdutos();
+          }}
+        />
+      )}
+
+      {showGerenciarCoresModal && produtoSelecionado && (
+        <GerenciarCoresModal
+          produto={produtoSelecionado}
+          onClose={() => {
+            setShowGerenciarCoresModal(false);
+            setProdutoSelecionado(null);
+          }}
+          onSuccess={() => {
+            carregarProdutos();
+          }}
+        />
+      )}
     </Layout>
   );
 };
