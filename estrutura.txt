@@ -1,0 +1,128 @@
+
+FullName                                                                             Length
+--------                                                                             ------
+C:\Projetos\app\.git                                                                 
+C:\Projetos\app\backend                                                              
+C:\Projetos\app\frontend                                                             
+C:\Projetos\app\.env.example                                                         2522
+C:\Projetos\app\.gitignore                                                           764
+C:\Projetos\app\docker-compose.yml                                                   2127
+C:\Projetos\app\estrutura.txt                                                        0
+C:\Projetos\app\package.json                                                         1170
+C:\Projetos\app\QUICKSTART.md                                                        3908
+C:\Projetos\app\README.md                                                            14328
+C:\Projetos\app\.git\hooks                                                           
+C:\Projetos\app\.git\info                                                            
+C:\Projetos\app\.git\logs                                                            
+C:\Projetos\app\.git\objects                                                         
+C:\Projetos\app\.git\refs                                                            
+C:\Projetos\app\.git\config                                                          278
+C:\Projetos\app\.git\description                                                     73
+C:\Projetos\app\.git\HEAD                                                            21
+C:\Projetos\app\.git\index                                                           6326
+C:\Projetos\app\.git\packed-refs                                                     236
+C:\Projetos\app\.git\hooks\applypatch-msg.sample                                     478
+C:\Projetos\app\.git\hooks\commit-msg.sample                                         896
+C:\Projetos\app\.git\hooks\fsmonitor-watchman.sample                                 4726
+C:\Projetos\app\.git\hooks\post-update.sample                                        189
+C:\Projetos\app\.git\hooks\pre-applypatch.sample                                     424
+C:\Projetos\app\.git\hooks\pre-commit.sample                                         1649
+C:\Projetos\app\.git\hooks\pre-merge-commit.sample                                   416
+C:\Projetos\app\.git\hooks\pre-push.sample                                           1374
+C:\Projetos\app\.git\hooks\pre-rebase.sample                                         4898
+C:\Projetos\app\.git\hooks\pre-receive.sample                                        544
+C:\Projetos\app\.git\hooks\prepare-commit-msg.sample                                 1492
+C:\Projetos\app\.git\hooks\push-to-checkout.sample                                   2783
+C:\Projetos\app\.git\hooks\sendemail-validate.sample                                 2308
+C:\Projetos\app\.git\hooks\update.sample                                             3650
+C:\Projetos\app\.git\info\exclude                                                    240
+C:\Projetos\app\.git\logs\refs                                                       
+C:\Projetos\app\.git\logs\HEAD                                                       185
+C:\Projetos\app\.git\logs\refs\heads                                                 
+C:\Projetos\app\.git\logs\refs\remotes                                               
+C:\Projetos\app\.git\logs\refs\heads\main                                            185
+C:\Projetos\app\.git\logs\refs\remotes\origin                                        
+C:\Projetos\app\.git\logs\refs\remotes\origin\HEAD                                   185
+C:\Projetos\app\.git\objects\info                                                    
+C:\Projetos\app\.git\objects\pack                                                    
+C:\Projetos\app\.git\objects\pack\pack-39b52052011c8049e5ccc042ce3165295ece9201.idx  3900
+C:\Projetos\app\.git\objects\pack\pack-39b52052011c8049e5ccc042ce3165295ece9201.pack 76627
+C:\Projetos\app\.git\objects\pack\pack-39b52052011c8049e5ccc042ce3165295ece9201.rev  456
+C:\Projetos\app\.git\refs\heads                                                      
+C:\Projetos\app\.git\refs\remotes                                                    
+C:\Projetos\app\.git\refs\tags                                                       
+C:\Projetos\app\.git\refs\heads\main                                                 41
+C:\Projetos\app\.git\refs\remotes\origin                                             
+C:\Projetos\app\.git\refs\remotes\origin\HEAD                                        30
+C:\Projetos\app\backend\database                                                     
+C:\Projetos\app\backend\prisma                                                       
+C:\Projetos\app\backend\src                                                          
+C:\Projetos\app\backend\.env.example                                                 552
+C:\Projetos\app\backend\Dockerfile                                                   343
+C:\Projetos\app\backend\package.json                                                 1037
+C:\Projetos\app\backend\database\seeds                                               
+C:\Projetos\app\backend\database\seeds\seed.js                                       15369
+C:\Projetos\app\backend\prisma\schema.prisma                                         18279
+C:\Projetos\app\backend\src\config                                                   
+C:\Projetos\app\backend\src\controllers                                              
+C:\Projetos\app\backend\src\middlewares                                              
+C:\Projetos\app\backend\src\routes                                                   
+C:\Projetos\app\backend\src\utils                                                    
+C:\Projetos\app\backend\src\server.js                                                4111
+C:\Projetos\app\backend\src\config\database.js                                       1095
+C:\Projetos\app\backend\src\config\logger.js                                         1417
+C:\Projetos\app\backend\src\controllers\auth.controller.js                           6408
+C:\Projetos\app\backend\src\controllers\loja.controller.js                           6169
+C:\Projetos\app\backend\src\controllers\user.controller.js                           9796
+C:\Projetos\app\backend\src\middlewares\auth.js                                      2835
+C:\Projetos\app\backend\src\middlewares\errorHandler.js                              1554
+C:\Projetos\app\backend\src\middlewares\notFoundHandler.js                           171
+C:\Projetos\app\backend\src\middlewares\rateLimiter.js                               1039
+C:\Projetos\app\backend\src\routes\auth.routes.js                                    748
+C:\Projetos\app\backend\src\routes\cotacao.routes.js                                 314
+C:\Projetos\app\backend\src\routes\dashboard.routes.js                               314
+C:\Projetos\app\backend\src\routes\inventario.routes.js                              314
+C:\Projetos\app\backend\src\routes\loja.routes.js                                    816
+C:\Projetos\app\backend\src\routes\pedidoB2B.routes.js                               314
+C:\Projetos\app\backend\src\routes\produto.routes.js                                 314
+C:\Projetos\app\backend\src\routes\requisicaoAbastecimento.routes.js                 314
+C:\Projetos\app\backend\src\routes\user.routes.js                                    925
+C:\Projetos\app\backend\src\utils\jwt.js                                             520
+C:\Projetos\app\backend\src\utils\validators.js                                      2561
+C:\Projetos\app\frontend\src                                                         
+C:\Projetos\app\frontend\Dockerfile                                                  309
+C:\Projetos\app\frontend\index.html                                                  713
+C:\Projetos\app\frontend\package.json                                                1125
+C:\Projetos\app\frontend\postcss.config.js                                           86
+C:\Projetos\app\frontend\tailwind.config.js                                          2073
+C:\Projetos\app\frontend\vite.config.js                                              1149
+C:\Projetos\app\frontend\src\components                                              
+C:\Projetos\app\frontend\src\contexts                                                
+C:\Projetos\app\frontend\src\pages                                                   
+C:\Projetos\app\frontend\src\services                                                
+C:\Projetos\app\frontend\src\App.jsx                                                 3278
+C:\Projetos\app\frontend\src\index.css                                               5544
+C:\Projetos\app\frontend\src\main.jsx                                                728
+C:\Projetos\app\frontend\src\components\Layout.jsx                                   4384
+C:\Projetos\app\frontend\src\components\LoadingSpinner.jsx                           726
+C:\Projetos\app\frontend\src\components\ProtectedRoute.jsx                           550
+C:\Projetos\app\frontend\src\contexts\AuthContext.jsx                                3245
+C:\Projetos\app\frontend\src\pages\admin                                             
+C:\Projetos\app\frontend\src\pages\auth                                              
+C:\Projetos\app\frontend\src\pages\cotacoes                                          
+C:\Projetos\app\frontend\src\pages\dashboard                                         
+C:\Projetos\app\frontend\src\pages\inventario                                        
+C:\Projetos\app\frontend\src\pages\pedidos-b2b                                       
+C:\Projetos\app\frontend\src\pages\requisicoes                                       
+C:\Projetos\app\frontend\src\pages\NotFoundPage.jsx                                  878
+C:\Projetos\app\frontend\src\pages\admin\LojasPage.jsx                               372
+C:\Projetos\app\frontend\src\pages\admin\ProdutosPage.jsx                            381
+C:\Projetos\app\frontend\src\pages\admin\UsersPage.jsx                               376
+C:\Projetos\app\frontend\src\pages\auth\LoginPage.jsx                                3878
+C:\Projetos\app\frontend\src\pages\cotacoes\CotacoesPage.jsx                         389
+C:\Projetos\app\frontend\src\pages\dashboard\DashboardPage.jsx                       2470
+C:\Projetos\app\frontend\src\pages\inventario\InventarioPage.jsx                     393
+C:\Projetos\app\frontend\src\pages\pedidos-b2b\PedidosB2BPage.jsx                    378
+C:\Projetos\app\frontend\src\pages\requisicoes\RequisicoesAbastecimentoPage.jsx      425
+C:\Projetos\app\frontend\src\services\api.js                                         905
+

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(docker ps:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNWQ2MTFlMC04YjNhLTQxODUtYjU2Yy0xMjY0ZTQ3NWI3MjciLCJpYXQiOjE3NjM4NDQ1OTMsImV4cCI6MTc2NDQ0OTM5M30.2wS9kQX2sAW488GTsxlnbZbqXKKJXoMdBNAEBDD8Wzg\")",
+      "Bash(docker restart:*)",
+      "Bash(docker logs:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNWQ2MTFlMC04YjNhLTQxODUtYjU2Yy0xMjY0ZTQ3NWI3MjciLCJpYXQiOjE3NjM4NDQ3NDEsImV4cCI6MTc2NDQ0OTU0MX0.9gWGoqVrP7HNPnxskeo2Y7UYe-RjHsFUx9WBbHbBnRE\")",
+      "Bash(python -m json.tool:*)",
+      "Bash(npm install:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker stop:*)",
+      "Bash(test:*)",
+      "Bash(npm i:*)",
+      "Bash(npm config get:*)",
+      "Bash(docker start:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
