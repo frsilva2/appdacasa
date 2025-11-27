@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, CheckCircle, XCircle, AlertCircle, Package, User, MapPin, CreditCard } from 'lucide-react';
 import api from '../../services/api';
+import { getUrlFotoCor } from '../../services/assets';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const AprovarPedidoModal = ({ pedido, onClose, onSuccess }) => {
@@ -10,7 +11,7 @@ const AprovarPedidoModal = ({ pedido, onClose, onSuccess }) => {
 
   const getColorImageUrl = (arquivoImagem) => {
     if (!arquivoImagem) return null;
-    return `http://localhost:5000/assets/cores/fotos/${arquivoImagem}`;
+    return getUrlFotoCor(arquivoImagem);
   };
 
   const calcularTotal = () => {

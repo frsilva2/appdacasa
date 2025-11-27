@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, CheckCircle2, Palette } from 'lucide-react';
 import api from '../../services/api';
+import { getUrlFotoCor } from '../../services/assets';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
@@ -108,7 +109,7 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
   // Obter URL da imagem da cor (servida pelo backend)
   const getColorImageUrl = (arquivoImagem) => {
     if (!arquivoImagem) return null;
-    return `http://localhost:5000/assets/cores/fotos/${arquivoImagem}`;
+    return getUrlFotoCor(arquivoImagem);
   };
 
   const selecionarTodasCores = () => {

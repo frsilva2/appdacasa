@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Building, MapPin, CreditCard, Check } from 'lucide-react';
 import api from '../../services/api';
+import { getUrlFotoCor } from '../../services/assets';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const CheckoutB2BPage = () => {
@@ -205,7 +206,7 @@ const CheckoutB2BPage = () => {
 
   const getColorImageUrl = (arquivoImagem) => {
     if (!arquivoImagem) return null;
-    return `http://localhost:5000/assets/cores/fotos/${arquivoImagem}`;
+    return getUrlFotoCor(arquivoImagem);
   };
 
   if (loading) {

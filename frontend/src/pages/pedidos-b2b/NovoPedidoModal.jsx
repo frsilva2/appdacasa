@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Trash2, Package, Plus, Minus, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
+import { getUrlFotoCor } from '../../services/assets';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ProductAutocomplete from '../../components/ProductAutocomplete';
 
@@ -91,7 +92,7 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
     const fileName = cor.arquivoImagem || cor.arquivo_imagem;
     if (!fileName) return null;
     // Assets ficam no servidor base, não na rota /api
-    return `http://localhost:5000/assets/cores/fotos/${fileName}`;
+    return getUrlFotoCor(fileName);
   };
 
   const calcularTotal = () => {

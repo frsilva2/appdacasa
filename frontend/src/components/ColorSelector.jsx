@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Palette } from 'lucide-react';
+import { getUrlFotoCor } from '../services/assets';
 
 const ColorSelector = ({
   cores,
@@ -23,10 +24,8 @@ const ColorSelector = ({
     const fileName = cor.arquivoImagem || cor.arquivo_imagem || cor.codigo;
     if (!fileName) return null;
 
-    // As imagens estão em C:\Projetos\Emporio-Tecidos-Assets\cores\fotos
-    // Servidor as serve via http://localhost:5000/assets/cores/fotos
-    // Assets ficam no servidor base, não na rota /api
-    return `http://localhost:5000/assets/cores/fotos/${fileName}`;
+    // Usar função centralizada de assets que usa variável de ambiente
+    return getUrlFotoCor(fileName);
   };
 
   return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Plus, Minus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { getUrlFotoCor } from '../../services/assets';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const LojaB2BPage = () => {
@@ -111,7 +112,7 @@ const LojaB2BPage = () => {
 
   const getColorImageUrl = (arquivoImagem) => {
     if (!arquivoImagem) return null;
-    return `http://localhost:5000/assets/cores/fotos/${arquivoImagem}`;
+    return getUrlFotoCor(arquivoImagem);
   };
 
   const produtosFiltrados = produtos.filter(p => {
