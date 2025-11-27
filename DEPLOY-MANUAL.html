@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Deploy Empório Tecidos - Guia Visual</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .step h3 {
+            display: inline;
+            color: #333;
+            font-size: 1.3em;
+        }
+
+        .step p {
+            margin-top: 10px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #28a745;
+        }
+
+        .btn-secondary:hover {
+            background: #218838;
+        }
+
+        .alert {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .buttons-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+
+        .command-box {
+            background: #1e1e1e;
+            color: #dcdcdc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Deploy Empório Tecidos</h1>
+        <p class="subtitle">Guia de 3 Cliques para Colocar no Ar</p>
+
+        <div class="alert">
+            <strong>⚡ Processo Simplificado:</strong> Você só precisa autorizar 2 serviços. O resto é automático!
+        </div>
+
+        <div class="step">
+            <span class="step-number">1</span>
+            <h3>Login no Railway (Backend + Banco)</h3>
+            <p>
+                O Railway vai hospedar seu backend Node.js + MySQL.<br>
+                <strong>Ação:</strong> Clique no botão abaixo e faça login com GitHub.
+            </p>
+            <div style="margin-top: 15px;">
+                <a href="https://railway.app/new" target="_blank" class="btn">
+                    🚂 Abrir Railway
+                </a>
+            </div>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                ✅ Depois de fazer login, volte aqui para o próximo passo.
+            </p>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2</span>
+            <h3>Deploy Backend no Railway</h3>
+            <p>
+                Agora vamos conectar seu GitHub ao Railway.<br>
+                <strong>No Railway:</strong>
+            </p>
+            <ol style="margin-left: 30px; margin-top: 10px; line-height: 1.8;">
+                <li>Clique em <strong>"Deploy from GitHub repo"</strong></li>
+                <li>Autorize acesso ao GitHub se pedido</li>
+                <li>Selecione o repositório: <code>basic</code></li>
+                <li>Railway vai detectar o projeto automaticamente</li>
+            </ol>
+            <p style="margin-top: 10px;">
+                <strong>IMPORTANTE:</strong> Depois que criar o serviço:
+            </p>
+            <ol style="margin-left: 30px; line-height: 1.8;">
+                <li>Clique no serviço criado</li>
+                <li>Vá em <strong>Settings</strong> → <strong>Root Directory</strong></li>
+                <li>Digite: <code>backend</code></li>
+                <li>Clique em <strong>+ New</strong> → <strong>Database</strong> → <strong>Add MySQL</strong></li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <span class="step-number">3</span>
+            <h3>Login no Vercel (Frontend)</h3>
+            <p>
+                O Vercel vai hospedar seu frontend React.<br>
+                <strong>Ação:</strong> Clique no botão abaixo e faça login.
+            </p>
+            <div style="margin-top: 15px;">
+                <a href="https://vercel.com/new" target="_blank" class="btn btn-secondary">
+                    ▲ Abrir Vercel
+                </a>
+            </div>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                ✅ Login com GitHub recomendado.
+            </p>
+        </div>
+
+        <div class="step">
+            <span class="step-number">4</span>
+            <h3>Deploy Frontend no Vercel</h3>
+            <p>
+                <strong>No Vercel:</strong>
+            </p>
+            <ol style="margin-left: 30px; margin-top: 10px; line-height: 1.8;">
+                <li>Clique em <strong>"Import Git Repository"</strong></li>
+                <li>Selecione o repositório: <code>basic</code></li>
+                <li>Configure:
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li>Framework: <strong>Vite</strong></li>
+                        <li>Root Directory: <code>frontend</code></li>
+                        <li>Build Command: <code>npm run build</code></li>
+                        <li>Output Directory: <code>dist</code></li>
+                    </ul>
+                </li>
+                <li>Em <strong>Environment Variables</strong>, adicione:
+                    <div class="command-box">VITE_API_URL=https://seu-backend.railway.app/api</div>
+                    <small>(Use a URL do Railway que você obteve no passo 2)</small>
+                </li>
+                <li>Clique em <strong>Deploy</strong></li>
+            </ol>
+        </div>
+
+        <div class="alert success">
+            <strong>🎉 Pronto!</strong> Seu sistema está no ar!<br>
+            <br>
+            <strong>Últimas Configurações:</strong><br>
+            1. No Railway, adicione a URL do Vercel na variável: <code>FRONTEND_URL</code><br>
+            2. Aguarde ~2 minutos para o redeploy automático<br>
+            3. Acesse seu site e faça login com: <code>admin@emporio.com</code> / <code>admin123</code>
+        </div>
+
+        <div class="buttons-container">
+            <a href="https://railway.app" target="_blank" class="btn">
+                🚂 Ir para Railway
+            </a>
+            <a href="https://vercel.com" target="_blank" class="btn btn-secondary">
+                ▲ Ir para Vercel
+            </a>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; color: #999; font-size: 0.9em;">
+            <p>💡 Dica: Ambos os serviços fazem redeploy automático quando você faz push no GitHub!</p>
+        </div>
+    </div>
+</body>
+</html>
