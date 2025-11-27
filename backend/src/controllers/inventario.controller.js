@@ -27,29 +27,160 @@ async function gerarNumeroInventario() {
 
 // Listar todos os inventários
 export const getAllInventarios = async (req, res) => {
-  // TODO: Implementar modelo Inventario no schema Prisma
-  res.status(501).json({
-    success: false,
-    message: 'Funcionalidade de inventário ainda não implementada no banco de dados',
-  });
+  try {
+    const { status } = req.query;
+
+    const where = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const inventarios = await prisma.inventario.findMany({
+      where,
+      include: {
+        responsavel: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json({
+      success: true,
+      data: inventarios,
+    });
+  } catch (error) {
+    logger.error('Erro ao listar inventários:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao listar inventários',
+    });
+  }
 };
 
 // Buscar inventário por ID
 export const getInventarioById = async (req, res) => {
-  // TODO: Implementar modelo Inventario no schema Prisma
-  res.status(501).json({
-    success: false,
-    message: 'Funcionalidade de inventário ainda não implementada no banco de dados',
-  });
+  try {
+    const { id } = req.params;
+
+    const inventario = await prisma.inventario.findUnique({
+      where: { id },
+      include: {
+        responsavel: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        items: {
+          include: {
+            produto: true,
+            cor: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!inventario) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inventário não encontrado',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: inventario,
+    });
+  } catch (error) {
+    logger.error('Erro ao buscar inventário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar inventário',
+    });
+  }
 };
 
 // Criar inventário
 export const createInventario = async (req, res) => {
-  // TODO: Implementar modelo Inventario no schema Prisma
-  res.status(501).json({
-    success: false,
-    message: 'Funcionalidade de inventário ainda não implementada no banco de dados',
-  });
+  try {
+    const { tipo, observacoes } = req.body;
+
+    // Validações
+    if (!tipo || !['CONFERENCIA', 'INVENTARIO'].includes(tipo)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tipo de inventário inválido. Use CONFERENCIA ou INVENTARIO',
+      });
+    }
+
+    // Gerar número do inventário
+    const numero = await gerarNumeroInventario();
+
+    // Criar inventário
+    const inventario = await prisma.inventario.create({
+      data: {
+        numero,
+        tipo,
+        status: 'EM_ANDAMENTO',
+        responsavelId: req.user.id,
+        observacoes: observacoes || null,
+      },
+      include: {
+        responsavel: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        items: true,
+      },
+    });
+
+    // Log de auditoria
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'CREATE',
+        entity: 'Inventario',
+        entityId: inventario.id,
+        newData: JSON.stringify({ numero, tipo }),
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      },
+    });
+
+    logger.info(`Inventário criado: ${numero} por ${req.user.email}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Inventário criado com sucesso',
+      data: inventario,
+    });
+  } catch (error) {
+    logger.error('Erro ao criar inventário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao criar inventário',
+    });
+  }
 };
 
 // Adicionar item ao inventário (OCR ou manual)
@@ -87,10 +218,10 @@ export const adicionarItem = async (req, res) => {
     // Buscar estoque atual (quantidade no sistema)
     const estoqueAtual = await prisma.estoque.findUnique({
       where: {
-        produtoId_corId_localizacao: {
+        produtoId_corId_local: {
           produtoId,
           corId,
-          localizacao: 'CD',
+          local: 'CD',
         },
       },
     });
@@ -280,40 +411,46 @@ export const finalizarInventario = async (req, res) => {
     // Atualizar estoque com base nas contagens
     for (const item of inventario.items) {
       const quantidadeContada = parseFloat(item.quantidadeContada);
+      const quantidadeSistema = parseFloat(item.quantidadeSistema);
 
       // Atualizar ou criar registro de estoque
       await prisma.estoque.upsert({
         where: {
-          produtoId_corId_localizacao: {
+          produtoId_corId_local: {
             produtoId: item.produtoId,
             corId: item.corId,
-            localizacao: 'CD',
+            local: 'CD',
           },
         },
         update: {
-          quantidade: quantidadeContada.toString(),
-          updatedAt: new Date(),
+          quantidade: quantidadeContada,
+          ultimaContagem: new Date(),
         },
         create: {
           produtoId: item.produtoId,
           corId: item.corId,
-          localizacao: 'CD',
-          quantidade: quantidadeContada.toString(),
+          local: 'CD',
+          quantidade: quantidadeContada,
+          ultimaContagem: new Date(),
         },
       });
 
-      // Criar movimento de estoque
-      await prisma.movimentacaoEstoque.create({
-        data: {
-          produtoId: item.produtoId,
-          corId: item.corId,
-          tipo: 'AJUSTE_INVENTARIO',
-          quantidade: parseFloat(item.divergencia).toString(),
-          localizacao: 'CD',
-          userId: req.user.id,
-          observacoes: `Inventário ${inventario.numero} - Ajuste de estoque`,
-        },
-      });
+      // Criar movimento de estoque (apenas se houver divergência)
+      const divergencia = parseFloat(item.divergencia);
+      if (divergencia !== 0) {
+        await prisma.movimentacaoEstoque.create({
+          data: {
+            produtoId: item.produtoId,
+            corId: item.corId,
+            tipo: 'INVENTARIO',
+            quantidade: Math.abs(divergencia),
+            quantidadeAntes: quantidadeSistema,
+            quantidadeDepois: quantidadeContada,
+            local: 'CD',
+            observacoes: `Inventário ${inventario.numero} - Ajuste de estoque`,
+          },
+        });
+      }
     }
 
     // Atualizar status do inventário
@@ -580,3 +717,4 @@ export const updateDEPARA = async (req, res) => {
     });
   }
 };
+

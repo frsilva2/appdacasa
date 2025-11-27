@@ -10,11 +10,9 @@ const DEPARAModal = ({ onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showNovo, setShowNovo] = useState(false);
   const [novoMapeamento, setNovoMapeamento] = useState({
-    codigoOrigem: '',
-    descricaoOrigem: '',
+    nomeFornecedor: '',
+    nomeERP: '',
     produtoId: '',
-    corId: '',
-    observacoes: '',
   });
 
   useEffect(() => {
@@ -43,8 +41,8 @@ const DEPARAModal = ({ onClose }) => {
   const handleCreate = async (e) => {
     e.preventDefault();
 
-    if (!novoMapeamento.codigoOrigem || !novoMapeamento.produtoId) {
-      alert('Preencha código de origem e produto');
+    if (!novoMapeamento.nomeFornecedor || !novoMapeamento.nomeERP) {
+      alert('Preencha nome do fornecedor e nome ERP');
       return;
     }
 
@@ -53,7 +51,7 @@ const DEPARAModal = ({ onClose }) => {
       await api.post('/inventario/depara/mapeamentos', novoMapeamento);
       alert('Mapeamento criado com sucesso!');
       setShowNovo(false);
-      setNovoMapeamento({ codigoOrigem: '', descricaoOrigem: '', produtoId: '', corId: '', observacoes: '' });
+      setNovoMapeamento({ nomeFornecedor: '', nomeERP: '', produtoId: '' });
       carregarMapeamentos();
     } catch (error) {
       console.error('Erro ao criar DEPARA:', error);
@@ -64,11 +62,9 @@ const DEPARAModal = ({ onClose }) => {
   };
 
   const mapeamentosFiltrados = mapeamentos.filter(m =>
-    m.codigoOrigem.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (m.descricaoOrigem || '').toLowerCase().includes(searchTerm.toLowerCase())
+    m.nomeFornecedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.nomeERP.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const produtoSelecionado = produtos.find(p => p.id === novoMapeamento.produtoId);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -114,24 +110,14 @@ const DEPARAModal = ({ onClose }) => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <span className="text-lg font-bold text-blue-600">{m.codigoOrigem}</span>
+                            <span className="text-lg font-bold text-blue-600">{m.nomeFornecedor}</span>
                             <span className="text-gray-400">→</span>
-                            <span className="text-lg font-bold text-gray-900">{m.produto.nome}</span>
-                            {m.cor && (
-                              <>
-                                <span className="text-gray-400">-</span>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-5 h-5 rounded-full border" style={{ backgroundColor: m.cor.codigoHex }} />
-                                  <span className="text-sm">{m.cor.nome}</span>
-                                </div>
-                              </>
-                            )}
+                            <span className="text-lg font-bold text-gray-900">{m.nomeERP}</span>
                           </div>
-                          {m.descricaoOrigem && (
-                            <p className="text-sm text-gray-600 mb-2">Descrição: {m.descricaoOrigem}</p>
-                          )}
-                          {m.observacoes && (
-                            <p className="text-xs text-gray-500">Obs: {m.observacoes}</p>
+                          {m.produto && (
+                            <p className="text-sm text-gray-600 mb-2">
+                              Produto vinculado: {m.produto.codigo} - {m.produto.nome}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -142,79 +128,57 @@ const DEPARAModal = ({ onClose }) => {
             </>
           ) : (
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código de Origem *
-                  </label>
-                  <input
-                    type="text"
-                    value={novoMapeamento.codigoOrigem}
-                    onChange={(e) => setNovoMapeamento({ ...novoMapeamento, codigoOrigem: e.target.value })}
-                    className="input"
-                    placeholder="COD123"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descrição de Origem
-                  </label>
-                  <input
-                    type="text"
-                    value={novoMapeamento.descricaoOrigem}
-                    onChange={(e) => setNovoMapeamento({ ...novoMapeamento, descricaoOrigem: e.target.value })}
-                    className="input"
-                    placeholder="Descrição do fornecedor"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome do Fornecedor *
+                </label>
+                <input
+                  type="text"
+                  value={novoMapeamento.nomeFornecedor}
+                  onChange={(e) => setNovoMapeamento({ ...novoMapeamento, nomeFornecedor: e.target.value })}
+                  className="input"
+                  placeholder="Nome do produto/material conforme fornecedor"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Como o fornecedor chama este produto (ex: "Tecido Cotton 100%")
+                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Produto de Destino *
+                  Nome no ERP *
+                </label>
+                <input
+                  type="text"
+                  value={novoMapeamento.nomeERP}
+                  onChange={(e) => setNovoMapeamento({ ...novoMapeamento, nomeERP: e.target.value })}
+                  className="input"
+                  placeholder="Nome padronizado no sistema"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Nome padronizado no sistema (ex: "Algodão Impermeabilizado")
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Produto Vinculado (Opcional)
                 </label>
                 <select
-                  value={novoMapeamento.produtoId}
-                  onChange={(e) => setNovoMapeamento({ ...novoMapeamento, produtoId: e.target.value, corId: '' })}
+                  value={novoMapeamento.produtoId || ''}
+                  onChange={(e) => setNovoMapeamento({ ...novoMapeamento, produtoId: e.target.value || null })}
                   className="input"
-                  required
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">Nenhum</option>
                   {produtos.map(p => (
                     <option key={p.id} value={p.id}>{p.codigo} - {p.nome}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cor (Opcional)
-                </label>
-                <select
-                  value={novoMapeamento.corId}
-                  onChange={(e) => setNovoMapeamento({ ...novoMapeamento, corId: e.target.value })}
-                  className="input"
-                  disabled={!novoMapeamento.produtoId}
-                >
-                  <option value="">Selecione...</option>
-                  {(produtoSelecionado?.cores || []).map(c => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Observações
-                </label>
-                <textarea
-                  value={novoMapeamento.observacoes}
-                  onChange={(e) => setNovoMapeamento({ ...novoMapeamento, observacoes: e.target.value })}
-                  className="input min-h-[60px]"
-                  placeholder="Informações adicionais..."
-                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Vincule a um produto do catálogo se aplicável
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">

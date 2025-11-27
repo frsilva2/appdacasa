@@ -92,6 +92,7 @@ model User {
   cotacoes                 Cotacao[]
   pedidosB2B               PedidoB2B[]
   auditLogs                AuditLog[]
+  inventarios              Inventario[]
 
   @@index([email])
   @@index([type])
@@ -151,6 +152,7 @@ model Produto {
   pedidoB2BItems                  PedidoB2BItem[]
   historicoPrecosXML              HistoricoPrecosXML[]
   movimentacoes                   MovimentacaoEstoque[]
+  inventarioItems                 InventarioItem[]
 
   @@index([codigo])
   @@index([curva])
@@ -176,6 +178,7 @@ model Cor {
   cotacaoItems                    CotacaoItem[]
   pedidoB2BItems                  PedidoB2BItem[]
   movimentacoes                   MovimentacaoEstoque[]
+  inventarioItems                 InventarioItem[]
 
   @@index([produtoId])
   @@unique([produtoId, nome])
@@ -714,6 +717,68 @@ model Configuracao {
   updatedAt DateTime @updatedAt
 
   @@index([chave])
+}
+
+// =====================================================
+// INVENTÁRIO / ALMOXARIFADO
+// =====================================================
+
+model Inventario {
+  id                String   @id @default(uuid())
+  numero            String   @unique // INV-2025-0001
+  tipo              InventarioTipo // INVENTARIO ou CONFERENCIA
+  status            InventarioStatus @default(EM_ANDAMENTO)
+  responsavelId     String
+  responsavel       User     @relation(fields: [responsavelId], references: [id])
+  observacoes       String?  @db.Text
+  dataFinalizacao   DateTime?
+
+  items             InventarioItem[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([numero])
+  @@index([status])
+  @@index([responsavelId])
+  @@index([createdAt])
+}
+
+model InventarioItem {
+  id                  String   @id @default(uuid())
+  inventarioId        String
+  inventario          Inventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+
+  produtoId           String
+  produto             Produto  @relation(fields: [produtoId], references: [id])
+  corId               String
+  cor                 Cor      @relation(fields: [corId], references: [id])
+
+  quantidadeSistema   String   @default("0") @db.VarChar(20) // Quantidade no sistema
+  quantidadeContada   String   @default("0") @db.VarChar(20) // Quantidade contada fisicamente
+  divergencia         String   @default("0") @db.VarChar(20) // Diferença (contada - sistema)
+
+  lote                String?  @db.VarChar(50)
+  observacoes         String?  @db.Text
+  ocrData             String?  @db.Text // JSON com dados do OCR
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([inventarioId])
+  @@index([produtoId])
+  @@index([corId])
+}
+
+enum InventarioTipo {
+  INVENTARIO  // Inventário completo
+  CONFERENCIA // Conferência parcial
+}
+
+enum InventarioStatus {
+  EM_ANDAMENTO
+  FINALIZADO
+  CANCELADO
 }
 
 

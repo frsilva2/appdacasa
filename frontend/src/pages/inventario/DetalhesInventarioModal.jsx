@@ -1,6 +1,75 @@
-import { X, Package, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Package, AlertTriangle, Edit2, Trash2 } from 'lucide-react';
+import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
-const DetalhesInventarioModal = ({ inventario, onClose }) => {
+const DetalhesInventarioModal = ({ inventario: inventarioProp, onClose, onReload }) => {
+  const { user } = useAuth();
+  const [inventario, setInventario] = useState(inventarioProp);
+  const [loading, setLoading] = useState(false);
+  const [editandoItem, setEditandoItem] = useState(null);
+  const [quantidadeEditada, setQuantidadeEditada] = useState('');
+
+  const isAdmin = user?.type === 'ADMIN';
+  const isUsuarioCD = user?.type === 'USUARIO_CD';
+  const podeEditar = (isAdmin || isUsuarioCD) && inventario.status === 'EM_ANDAMENTO';
+
+  // Recarregar inventário completo
+  useEffect(() => {
+    const recarregarInventario = async () => {
+      try {
+        const response = await api.get(`/inventario/${inventarioProp.id}`);
+        setInventario(response.data.data);
+      } catch (error) {
+        console.error('Erro ao recarregar inventário:', error);
+      }
+    };
+    recarregarInventario();
+  }, [inventarioProp.id]);
+
+  const handleEditarItem = (item) => {
+    setEditandoItem(item.id);
+    setQuantidadeEditada(item.quantidadeContada);
+  };
+
+  const handleSalvarEdicao = async (itemId) => {
+    try {
+      setLoading(true);
+      await api.put(`/inventario/item/${itemId}`, {
+        quantidadeContada: parseFloat(quantidadeEditada),
+      });
+
+      // Recarregar inventário
+      const response = await api.get(`/inventario/${inventario.id}`);
+      setInventario(response.data.data);
+      setEditandoItem(null);
+      if (onReload) onReload();
+    } catch (error) {
+      console.error('Erro ao editar item:', error);
+      alert(error.response?.data?.message || 'Erro ao editar item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoverItem = async (itemId) => {
+    if (!confirm('Tem certeza que deseja remover este item?')) return;
+
+    try {
+      setLoading(true);
+      await api.delete(`/inventario/item/${itemId}`);
+
+      // Recarregar inventário
+      const response = await api.get(`/inventario/${inventario.id}`);
+      setInventario(response.data.data);
+      if (onReload) onReload();
+    } catch (error) {
+      console.error('Erro ao remover item:', error);
+      alert(error.response?.data?.message || 'Erro ao remover item');
+    } finally {
+      setLoading(false);
+    }
+  };
   const getStatusBadge = (status) => {
     const badges = {
       EM_ANDAMENTO: { label: 'Em Andamento', class: 'bg-blue-100 text-blue-800' },
@@ -91,7 +160,18 @@ const DetalhesInventarioModal = ({ inventario, onClose }) => {
                       </div>
                       <div>
                         <p className="text-gray-600">Qtd. Contada</p>
-                        <p className="font-semibold">{parseFloat(item.quantidadeContada).toFixed(2)}m</p>
+                        {editandoItem === item.id ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={quantidadeEditada}
+                            onChange={(e) => setQuantidadeEditada(e.target.value)}
+                            className="input w-full"
+                            autoFocus
+                          />
+                        ) : (
+                          <p className="font-semibold">{parseFloat(item.quantidadeContada).toFixed(2)}m</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-gray-600">Divergência</p>
@@ -100,6 +180,48 @@ const DetalhesInventarioModal = ({ inventario, onClose }) => {
                         </p>
                       </div>
                     </div>
+
+                    {podeEditar && (
+                      <div className="mt-4 pt-4 border-t flex gap-2">
+                        {editandoItem === item.id ? (
+                          <>
+                            <button
+                              onClick={() => handleSalvarEdicao(item.id)}
+                              className="btn-primary text-sm flex-1"
+                              disabled={loading}
+                            >
+                              Salvar
+                            </button>
+                            <button
+                              onClick={() => setEditandoItem(null)}
+                              className="btn-secondary text-sm flex-1"
+                              disabled={loading}
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEditarItem(item)}
+                              className="btn-secondary text-sm flex items-center gap-1"
+                              disabled={loading}
+                            >
+                              <Edit2 size={14} />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleRemoverItem(item.id)}
+                              className="btn-secondary text-sm text-red-600 flex items-center gap-1"
+                              disabled={loading}
+                            >
+                              <Trash2 size={14} />
+                              Remover
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {item.observacoes && (
                       <div className="mt-3 pt-3 border-t text-sm">

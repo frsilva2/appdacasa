@@ -13,7 +13,11 @@ const UploadEtiqueta = ({ onOCRComplete, onErro }) => {
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState(null);
+  const [modoCamera, setModoCamera] = useState(false);
+  const [stream, setStream] = useState(null);
   const inputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -76,13 +80,78 @@ const UploadEtiqueta = ({ onOCRComplete, onErro }) => {
   };
 
   const handleReset = () => {
+    pararCamera();
     setArquivo(null);
     setPreview(null);
     setResultado(null);
     setErro(null);
+    setModoCamera(false);
     if (inputRef.current) {
       inputRef.current.value = '';
     }
+  };
+
+  const iniciarCamera = async () => {
+    try {
+      setErro(null);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment', // Câmera traseira em mobile
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      });
+
+      setStream(mediaStream);
+      setModoCamera(true);
+
+      // Aguardar o videoRef estar disponível
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Erro ao acessar câmera:', error);
+      setErro('Erro ao acessar a câmera. Verifique as permissões do navegador.');
+    }
+  };
+
+  const pararCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setModoCamera(false);
+  };
+
+  const capturarFoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    // Configurar dimensões do canvas
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Desenhar frame do vídeo no canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Converter para blob e criar arquivo
+    canvas.toBlob((blob) => {
+      const file = new File([blob], 'captura-camera.jpg', { type: 'image/jpeg' });
+
+      // Criar preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result);
+        setArquivo(file);
+        pararCamera();
+      };
+      reader.readAsDataURL(file);
+    }, 'image/jpeg', 0.95);
   };
 
   const handleDragOver = (e) => {
@@ -102,31 +171,99 @@ const UploadEtiqueta = ({ onOCRComplete, onErro }) => {
 
   return (
     <div className="space-y-4">
-      {/* Área de Upload */}
-      {!preview ? (
-        <div
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-gray-50 transition-all"
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+      {/* Modo Câmera */}
+      {modoCamera && !preview ? (
+        <div className="space-y-4">
+          <div className="relative rounded-lg overflow-hidden border-2 border-primary bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-auto"
+              style={{ maxHeight: '500px', objectFit: 'contain' }}
+            />
 
-          <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            {/* Guias de captura */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg opacity-50" />
+            </div>
 
-          <p className="text-gray-600 mb-2">
-            Clique para selecionar ou arraste uma imagem
-          </p>
-          <p className="text-sm text-gray-500">
-            Formatos: JPG, PNG (máx. 5MB)
-          </p>
+            {/* Instruções */}
+            <div className="absolute top-4 left-0 right-0 text-center">
+              <div className="inline-block bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg">
+                <p className="text-sm font-medium">Posicione a etiqueta dentro do quadrado</p>
+              </div>
+            </div>
+          </div>
+
+          <canvas ref={canvasRef} className="hidden" />
+
+          <div className="flex gap-3">
+            <button
+              onClick={capturarFoto}
+              className="flex-1 bg-primary text-white px-6 py-4 rounded-lg font-bold text-lg hover:bg-opacity-90 transition-colors flex items-center justify-center gap-2"
+            >
+              <Camera className="w-6 h-6" />
+              Capturar Foto
+            </button>
+
+            <button
+              onClick={pararCamera}
+              className="px-6 py-4 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
+      ) : !preview ? (
+        <>
+          {/* Botões de Modo */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={iniciarCamera}
+              className="flex flex-col items-center gap-3 p-6 border-2 border-primary bg-primary bg-opacity-5 rounded-lg hover:bg-opacity-10 transition-all group"
+            >
+              <Camera className="w-10 h-10 text-primary group-hover:scale-110 transition-transform" />
+              <div>
+                <p className="font-bold text-gray-900">Tirar Foto</p>
+                <p className="text-sm text-gray-600">Use a câmera</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => inputRef.current?.click()}
+              className="flex flex-col items-center gap-3 p-6 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all group"
+            >
+              <Upload className="w-10 h-10 text-gray-500 group-hover:scale-110 transition-transform" />
+              <div>
+                <p className="font-bold text-gray-900">Upload</p>
+                <p className="text-sm text-gray-600">Escolher arquivo</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Área de Drag and Drop */}
+          <div
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center"
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+            <p className="text-sm text-gray-500">
+              Ou arraste uma imagem aqui (máx. 5MB)
+            </p>
+          </div>
+        </>
       ) : (
         <div className="space-y-4">
           {/* Preview da Imagem */}
