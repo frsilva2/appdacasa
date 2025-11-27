@@ -85,14 +85,9 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
   };
 
   const removerCor = async (cor) => {
-    if (!confirm(`Tem certeza que deseja remover a cor "${cor.nome}"?`)) {
-      return;
-    }
-
     try {
       setLoading(true);
       await api.delete(`/produtos/cores/${cor.id}`);
-      alert('Cor removida com sucesso!');
       carregarCores();
       onSuccess();
     } catch (error) {
@@ -101,6 +96,13 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Extrair código da cor do nome do arquivo (ex: branco_100.jpg → 100)
+  const extrairCodigoCor = (arquivoImagem) => {
+    if (!arquivoImagem) return null;
+    const match = arquivoImagem.match(/_(\d+)\./);
+    return match ? match[1] : null;
   };
 
   const selecionarTodasCores = () => {
@@ -158,36 +160,44 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {coresDoProduct.map((cor) => (
-                      <div
-                        key={cor.id}
-                        className="relative border-2 border-green-200 rounded-lg p-3 bg-green-50 hover:shadow-md transition-shadow"
-                      >
-                        {cor.arquivoImagem && (
-                          <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
-                            <img
-                              src={`/assets/cores/fotos/${cor.arquivoImagem}`}
-                              alt={cor.nome}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                        <p className="text-sm font-medium text-gray-900 text-center mb-2">
-                          {cor.nome}
-                        </p>
-                        <button
-                          onClick={() => removerCor(cor)}
-                          disabled={loading}
-                          className="w-full bg-red-500 text-white px-2 py-1.5 rounded text-xs hover:bg-red-600 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+                    {coresDoProduct.map((cor) => {
+                      const codigo = extrairCodigoCor(cor.arquivoImagem);
+                      return (
+                        <div
+                          key={cor.id}
+                          className="relative border-2 border-green-200 rounded-lg p-3 bg-green-50 hover:shadow-md transition-shadow"
                         >
-                          <Trash2 size={14} />
-                          Remover
-                        </button>
-                      </div>
-                    ))}
+                          {cor.arquivoImagem && (
+                            <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
+                              <img
+                                src={`/Emporio-Tecidos-Assets/cores/fotos/${cor.arquivoImagem}`}
+                                alt={cor.nome}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <p className="text-sm font-semibold text-gray-900 text-center">
+                            {cor.nome}
+                          </p>
+                          {codigo && (
+                            <p className="text-xs text-gray-600 text-center font-mono mb-2">
+                              {codigo}
+                            </p>
+                          )}
+                          <button
+                            onClick={() => removerCor(cor)}
+                            disabled={loading}
+                            className="w-full bg-red-500 text-white px-2 py-1.5 rounded text-xs hover:bg-red-600 transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+                          >
+                            <Trash2 size={14} />
+                            Remover
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -244,39 +254,47 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {coresFaltantes.map((cor) => (
-                      <button
-                        key={cor.nome}
-                        onClick={() => toggleCorSelecionada(cor.nome)}
-                        disabled={loading}
-                        className={`relative border-2 rounded-lg p-3 transition-all transform hover:scale-105 ${
-                          selectedCores.has(cor.nome)
-                            ? 'border-primary bg-primary bg-opacity-10 shadow-lg'
-                            : 'border-gray-300 bg-white hover:border-primary hover:shadow-md'
-                        }`}
-                      >
-                        {cor.arquivoImagem && (
-                          <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
-                            <img
-                              src={`/assets/cores/fotos/${cor.arquivoImagem}`}
-                              alt={cor.nome}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                        <p className="text-sm font-medium text-gray-900 text-center">
-                          {cor.nome}
-                        </p>
-                        {selectedCores.has(cor.nome) && (
-                          <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
-                            <CheckCircle2 size={18} className="text-white" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
+                    {coresFaltantes.map((cor) => {
+                      const codigo = extrairCodigoCor(cor.arquivoImagem);
+                      return (
+                        <button
+                          key={cor.nome}
+                          onClick={() => toggleCorSelecionada(cor.nome)}
+                          disabled={loading}
+                          className={`relative border-2 rounded-lg p-3 transition-all transform hover:scale-105 ${
+                            selectedCores.has(cor.nome)
+                              ? 'border-primary bg-primary bg-opacity-10 shadow-lg'
+                              : 'border-gray-300 bg-white hover:border-primary hover:shadow-md'
+                          }`}
+                        >
+                          {cor.arquivoImagem && (
+                            <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
+                              <img
+                                src={`/Emporio-Tecidos-Assets/cores/fotos/${cor.arquivoImagem}`}
+                                alt={cor.nome}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <p className="text-sm font-semibold text-gray-900 text-center">
+                            {cor.nome}
+                          </p>
+                          {codigo && (
+                            <p className="text-xs text-gray-600 text-center font-mono">
+                              {codigo}
+                            </p>
+                          )}
+                          {selectedCores.has(cor.nome) && (
+                            <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
+                              <CheckCircle2 size={18} className="text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
