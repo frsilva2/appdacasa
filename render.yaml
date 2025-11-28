@@ -31,7 +31,7 @@ services:
         value: 5531999999999
       - key: FRONTEND_URL
         value: https://appdacasa.vercel.app
-    healthCheckPath: /api/health
+    healthCheckPath: /health
 
 databases:
   # PostgreSQL Database
