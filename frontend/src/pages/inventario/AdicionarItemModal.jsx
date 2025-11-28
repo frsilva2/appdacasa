@@ -28,7 +28,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
 
   const carregarProdutos = async () => {
     try {
-      const response = await api.get('/produtos/com-estoque');
+      const response = await api.get('/produtos');
       setProdutos(response.data.data);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
