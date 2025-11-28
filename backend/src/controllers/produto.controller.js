@@ -142,35 +142,15 @@ export const getEstoqueCD = async (req, res) => {
 // Get produtos com estoque disponível (para requisições)
 export const getProdutosComEstoque = async (req, res) => {
   try {
+    // Retorna todos os produtos ativos com suas cores (mesmo sem estoque)
     const produtos = await prisma.produto.findMany({
       where: {
         active: true,
-        estoques: {
-          some: {
-            local: 'CD',
-            quantidade: { gt: 0 },
-          },
-        },
       },
       include: {
         cores: {
           where: {
             active: true,
-            estoques: {
-              some: {
-                local: 'CD',
-                quantidade: { gt: 0 },
-              },
-            },
-          },
-          include: {
-            estoques: {
-              where: { local: 'CD' },
-              select: {
-                quantidade: true,
-                quantidadeMin: true,
-              },
-            },
           },
           orderBy: { nome: 'asc' },
         },
