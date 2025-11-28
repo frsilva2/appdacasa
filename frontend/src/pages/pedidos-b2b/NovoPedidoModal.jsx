@@ -15,6 +15,13 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
   const [formaPagamento, setFormaPagamento] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
+  // Extrair código do arquivo de imagem (formato: nomedacor_CODIGO.jpg)
+  const extrairCodigoCor = (arquivoImagem) => {
+    if (!arquivoImagem) return '';
+    const match = arquivoImagem.match(/_(\d+)\./);
+    return match ? match[1] : '';
+  };
+
   useEffect(() => {
     carregarProdutos();
   }, []);
@@ -262,6 +269,7 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                   {coresFiltradas.map((cor) => {
                     const quantidade = getQuantidadeCor(cor.id);
                     const imagemUrl = getColorImageUrl(cor);
+                    const codigoCor = extrairCodigoCor(cor.arquivoImagem);
 
                     return (
                       <div
@@ -270,11 +278,8 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                           quantidade > 0 ? 'border-blue-500 shadow-lg' : 'border-gray-200'
                         }`}
                       >
-                        <div
-                          className="h-32 flex items-center justify-center relative"
-                          style={{ backgroundColor: cor.codigoHex || '#CCCCCC' }}
-                        >
-                          {imagemUrl && (
+                        <div className="h-32 flex items-center justify-center relative overflow-hidden">
+                          {imagemUrl ? (
                             <img
                               src={imagemUrl}
                               alt={cor.nome}
@@ -282,6 +287,11 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                               onError={(e) => {
                                 e.target.style.display = 'none';
                               }}
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full"
+                              style={{ backgroundColor: cor.codigoHex || '#CCCCCC' }}
                             />
                           )}
 
@@ -292,10 +302,13 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                           )}
                         </div>
 
-                        <div className="p-2 bg-white border-t">
-                          <p className="text-xs font-medium text-gray-900 truncate text-center">
+                        <div className="p-2 bg-white border-t text-center">
+                          <p className="text-xs font-medium text-gray-900 truncate" title={cor.nome}>
                             {cor.nome}
                           </p>
+                          {codigoCor && (
+                            <p className="text-sm font-bold text-blue-600">{codigoCor}</p>
+                          )}
                         </div>
 
                         <div className="flex">

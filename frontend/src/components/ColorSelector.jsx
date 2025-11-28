@@ -18,6 +18,13 @@ const ColorSelector = ({
     return nomeCor.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  // Extrair código do arquivo de imagem (formato: nomedacor_CODIGO.jpg)
+  const extrairCodigoCor = (arquivoImagem) => {
+    if (!arquivoImagem) return '';
+    const match = arquivoImagem.match(/_(\d+)\./);
+    return match ? match[1] : '';
+  };
+
   // Helper para gerar URL da imagem da cor
   const getColorImageUrl = (cor) => {
     // Suporte para cores do assets (JSON) e do banco (Prisma)
@@ -50,6 +57,7 @@ const ColorSelector = ({
             : selectedCorId === cor.id;
           const estoque = showEstoque ? cor.estoques?.[0] : null;
           const imagemUrl = getColorImageUrl(cor);
+          const codigoCor = extrairCodigoCor(cor.arquivoImagem || cor.arquivo_imagem);
 
           const handleClick = () => {
             if (multiSelect) {
@@ -113,9 +121,16 @@ const ColorSelector = ({
                 {/* Informações da Cor */}
                 <div className="p-3 space-y-1">
                   {/* Nome da Cor */}
-                  <p className="font-semibold text-gray-900 text-sm leading-tight">
+                  <p className="font-semibold text-gray-900 text-sm leading-tight" title={cor.nome || cor.nome_cor}>
                     {cor.nome || cor.nome_cor}
                   </p>
+
+                  {/* Código da Cor extraído do arquivo (se disponível) */}
+                  {codigoCor && (
+                    <p className="text-lg font-bold text-blue-600">
+                      {codigoCor}
+                    </p>
+                  )}
 
                   {/* Código Hex */}
                   <div className="flex items-center gap-2">
@@ -136,7 +151,7 @@ const ColorSelector = ({
                   )}
 
                   {/* Código da Cor (se disponível) */}
-                  {cor.codigo && (
+                  {cor.codigo && !codigoCor && (
                     <p className="text-xs text-gray-500 font-medium">
                       Cód: {cor.codigo}
                     </p>
