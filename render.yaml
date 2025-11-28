@@ -34,7 +34,7 @@ services:
     healthCheckPath: /api/health
 
 databases:
-  # MySQL Database
+  # PostgreSQL Database
   - name: emporio-tecidos-db
     databaseName: emporio_tecidos
     user: emporio
