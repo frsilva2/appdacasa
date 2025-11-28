@@ -30,7 +30,7 @@ services:
       - key: DEFAULT_WHATSAPP_NUMBER
         value: 5531999999999
       - key: FRONTEND_URL
-        value: https://appdacasa.vercel.app
+        value: https://frontend-5mp8kg5aa-felipes-projects-62ee3145.vercel.app
     healthCheckPath: /health
 
 databases:
