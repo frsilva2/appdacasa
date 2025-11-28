@@ -179,14 +179,17 @@ app.get('/api/cores/:corId/imagem', async (req, res) => {
 // HEALTH CHECK
 // =====================================================
 
-app.get('/health', (req, res) => {
+const healthResponse = (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: NODE_ENV,
     version: '1.0.0'
   });
-});
+};
+
+app.get('/health', healthResponse);
+app.get('/api/health', healthResponse);
 
 // =====================================================
 // ROTAS DA API
