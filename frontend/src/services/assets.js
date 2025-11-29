@@ -66,7 +66,9 @@ export const getFotosCores = async () => {
  * @returns {string} URL completa
  */
 export const getUrlFotoCor = (nomeArquivo) => {
-  const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  // VITE_API_URL contém /api no final, remover para acessar /assets
+  const apiURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const baseURL = apiURL.replace('/api', '');
   return `${baseURL}/assets/cores/fotos/${nomeArquivo}`;
 };
 
@@ -128,7 +130,8 @@ export const uploadEProcessarOCR = async (arquivo) => {
  * @returns {string} URL completa
  */
 export const getUrlEtiqueta = (nomeArquivo) => {
-  const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const apiURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const baseURL = apiURL.replace('/api', '');
   return `${baseURL}/assets/etiquetas/${nomeArquivo}`;
 };
 
@@ -142,7 +145,8 @@ export const getUrlEtiqueta = (nomeArquivo) => {
  * @returns {string} URL completa
  */
 export const getUrlLogo = (formato = 'svg') => {
-  const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const apiURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const baseURL = apiURL.replace('/api', '');
 
   const logos = {
     svg: 'logo.svg',
