@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "npm install --workspace=frontend",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/((?!assets|manifest\\.json|sw\\.js|workbox-.*\\.js|icon-.*\\.png|favicon\\.ico|logo\\.svg|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
