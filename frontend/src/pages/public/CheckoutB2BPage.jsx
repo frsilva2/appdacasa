@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Building, MapPin, CreditCard, Check } from 'lucide-react';
 import api from '../../services/api';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const CheckoutB2BPage = () => {
@@ -204,9 +205,14 @@ const CheckoutB2BPage = () => {
     }, 0);
   };
 
-  const getColorImageUrl = (arquivoImagem) => {
-    if (!arquivoImagem) return null;
-    return getUrlFotoCor(arquivoImagem);
+  const getColorImageUrl = (corNomeOuArquivo) => {
+    // SEMPRE usa o mapeamento primeiro
+    let fileName = getArquivoImagemCor(corNomeOuArquivo);
+    if (!fileName) {
+      fileName = corNomeOuArquivo;
+    }
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
   };
 
   if (loading) {
@@ -625,24 +631,28 @@ const RevisaoPedido = ({ formData, carrinho, getColorImageUrl }) => {
       <div>
         <h3 className="font-semibold mb-3">Produtos ({carrinho.length})</h3>
         <div className="space-y-2">
-          {carrinho.map((item, index) => (
-            <div key={index} className="flex items-center gap-3 text-sm border-b pb-2">
-              {item.cor.arquivoImagem && (
-                <img
-                  src={getColorImageUrl(item.cor.arquivoImagem)}
-                  alt={item.cor.nome}
-                  className="w-12 h-12 rounded object-cover"
-                />
-              )}
-              <div className="flex-1">
-                <p className="font-medium">{item.produto.nome}</p>
-                <p className="text-gray-600">{item.cor.nome} - {item.quantidade}m</p>
+          {carrinho.map((item, index) => {
+            const imagemUrl = getColorImageUrl(item.cor.nome);
+            return (
+              <div key={index} className="flex items-center gap-3 text-sm border-b pb-2">
+                {imagemUrl && (
+                  <img
+                    src={imagemUrl}
+                    alt={item.cor.nome}
+                    className="w-12 h-12 rounded object-cover"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+                <div className="flex-1">
+                  <p className="font-medium">{item.produto.nome}</p>
+                  <p className="text-gray-600">{item.cor.nome} - {item.quantidade}m</p>
+                </div>
+                <p className="font-medium">
+                  R$ {(parseFloat(item.produto.precoAtacado) * item.quantidade).toFixed(2)}
+                </p>
               </div>
-              <p className="font-medium">
-                R$ {(parseFloat(item.produto.precoAtacado) * item.quantidade).toFixed(2)}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

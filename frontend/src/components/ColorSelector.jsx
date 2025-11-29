@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Palette } from 'lucide-react';
 import { getUrlFotoCor } from '../services/assets';
+import { getArquivoImagemCor, getCodigoCor } from '../utils/coresMapping';
 
 const ColorSelector = ({
   cores,
@@ -18,8 +19,15 @@ const ColorSelector = ({
     return nomeCor.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  // Extrair código do arquivo de imagem (formato: nomedacor_CODIGO.jpg)
-  const extrairCodigoCor = (arquivoImagem) => {
+  // Extrair código do arquivo de imagem usando mapeamento
+  const extrairCodigoCor = (cor) => {
+    const nomeCor = cor.nome || cor.nome_cor;
+    if (nomeCor) {
+      const codigo = getCodigoCor(nomeCor);
+      if (codigo) return codigo;
+    }
+    // Fallback: tentar extrair do arquivo
+    const arquivoImagem = cor.arquivoImagem || cor.arquivo_imagem;
     if (!arquivoImagem) return '';
     const match = arquivoImagem.match(/_(\d+)\./);
     return match ? match[1] : '';
@@ -27,11 +35,13 @@ const ColorSelector = ({
 
   // Helper para gerar URL da imagem da cor
   const getColorImageUrl = (cor) => {
-    // Suporte para cores do assets (JSON) e do banco (Prisma)
-    const fileName = cor.arquivoImagem || cor.arquivo_imagem || cor.codigo;
+    // SEMPRE usa o mapeamento primeiro (banco tem valores incorretos)
+    const nomeCor = cor.nome || cor.nome_cor;
+    let fileName = getArquivoImagemCor(nomeCor);
+    if (!fileName) {
+      fileName = cor.arquivoImagem || cor.arquivo_imagem || cor.codigo;
+    }
     if (!fileName) return null;
-
-    // Usar função centralizada de assets que usa variável de ambiente
     return getUrlFotoCor(fileName);
   };
 
@@ -57,7 +67,7 @@ const ColorSelector = ({
             : selectedCorId === cor.id;
           const estoque = showEstoque ? cor.estoques?.[0] : null;
           const imagemUrl = getColorImageUrl(cor);
-          const codigoCor = extrairCodigoCor(cor.arquivoImagem || cor.arquivo_imagem);
+          const codigoCor = extrairCodigoCor(cor);
 
           const handleClick = () => {
             if (multiSelect) {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, CheckCircle2, Palette } from 'lucide-react';
 import api from '../../services/api';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor, getCodigoCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
@@ -99,17 +100,29 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
     }
   };
 
-  // Extrair código da cor do nome do arquivo (ex: branco_100.jpg → 100)
-  const extrairCodigoCor = (arquivoImagem) => {
-    if (!arquivoImagem) return null;
-    const match = arquivoImagem.match(/_(\d+)\./);
-    return match ? match[1] : null;
+  // Extrair código da cor usando mapeamento
+  const extrairCodigoCor = (cor) => {
+    // Usa o mapeamento pelo nome da cor
+    const codigo = getCodigoCor(cor.nome || cor);
+    if (codigo) return codigo;
+    // Fallback: tenta extrair do arquivo
+    const arquivoImagem = typeof cor === 'object' ? cor.arquivoImagem : null;
+    if (arquivoImagem) {
+      const match = arquivoImagem.match(/_(\d+)\./);
+      if (match) return match[1];
+    }
+    return null;
   };
 
-  // Obter URL da imagem da cor (servida pelo backend)
-  const getColorImageUrl = (arquivoImagem) => {
-    if (!arquivoImagem) return null;
-    return getUrlFotoCor(arquivoImagem);
+  // Obter URL da imagem da cor usando mapeamento
+  const getColorImageUrl = (corNomeOuArquivo) => {
+    // SEMPRE usa o mapeamento primeiro
+    let fileName = getArquivoImagemCor(corNomeOuArquivo);
+    if (!fileName) {
+      fileName = corNomeOuArquivo;
+    }
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
   };
 
   const selecionarTodasCores = () => {
@@ -168,16 +181,17 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {coresDoProduct.map((cor) => {
-                      const codigo = extrairCodigoCor(cor.arquivoImagem);
+                      const codigo = extrairCodigoCor(cor);
+                      const imagemUrl = getColorImageUrl(cor.nome);
                       return (
                         <div
                           key={cor.id}
                           className="relative border-2 border-green-200 rounded-lg p-3 bg-green-50 hover:shadow-md transition-shadow"
                         >
-                          {cor.arquivoImagem && (
+                          {imagemUrl && (
                             <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                               <img
-                                src={getColorImageUrl(cor.arquivoImagem)}
+                                src={imagemUrl}
                                 alt={cor.nome}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -262,7 +276,8 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {coresFaltantes.map((cor) => {
-                      const codigo = extrairCodigoCor(cor.arquivoImagem);
+                      const codigo = extrairCodigoCor(cor);
+                      const imagemUrl = getColorImageUrl(cor.nome);
                       return (
                         <button
                           key={cor.nome}
@@ -274,10 +289,10 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                               : 'border-gray-300 bg-white hover:border-primary hover:shadow-md'
                           }`}
                         >
-                          {cor.arquivoImagem && (
+                          {imagemUrl && (
                             <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                               <img
-                                src={getColorImageUrl(cor.arquivoImagem)}
+                                src={imagemUrl}
                                 alt={cor.nome}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {

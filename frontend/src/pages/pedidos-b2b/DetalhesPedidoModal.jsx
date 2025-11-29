@@ -1,9 +1,14 @@
 import { X, Calendar, User, Package, DollarSign, MapPin, CreditCard, Truck, Clock } from 'lucide-react';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor } from '../../utils/coresMapping';
 
 const DetalhesPedidoModal = ({ pedido, onClose }) => {
   const getColorImageUrl = (cor) => {
-    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    // SEMPRE usa o mapeamento primeiro (banco tem valores incorretos)
+    let fileName = getArquivoImagemCor(cor.nome);
+    if (!fileName) {
+      fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    }
     if (!fileName) return null;
     return getUrlFotoCor(fileName);
   };

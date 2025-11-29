@@ -3,6 +3,7 @@ import { ShoppingCart, Search, Plus, Minus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor, getCodigoCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const LojaB2BPage = () => {
@@ -110,9 +111,14 @@ const LojaB2BPage = () => {
     }, 0);
   };
 
-  const getColorImageUrl = (arquivoImagem) => {
-    if (!arquivoImagem) return null;
-    return getUrlFotoCor(arquivoImagem);
+  const getColorImageUrl = (corNomeOuArquivo) => {
+    // SEMPRE usa o mapeamento primeiro
+    let fileName = getArquivoImagemCor(corNomeOuArquivo);
+    if (!fileName) {
+      fileName = corNomeOuArquivo; // fallback para o valor original se for arquivo
+    }
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
   };
 
   const produtosFiltrados = produtos.filter(p => {
@@ -312,11 +318,17 @@ const ProdutoCard = ({ produto, onClick }) => {
 const ModalProduto = ({ produto, onClose, onAdicionarAoCarrinho, getColorImageUrl }) => {
   const [selecoes, setSelecoes] = useState({});
 
-  // Extrair código do arquivo de imagem (formato: nomedacor_CODIGO.jpg)
-  const extrairCodigoCor = (arquivoImagem) => {
-    if (!arquivoImagem) return '';
-    const match = arquivoImagem.match(/_(\d+)\./);
-    return match ? match[1] : '';
+  // Extrair código da cor usando mapeamento
+  const extrairCodigoCor = (cor) => {
+    // Usa o mapeamento pelo nome da cor
+    const codigo = getCodigoCor(cor.nome);
+    if (codigo) return codigo;
+    // Fallback: tenta extrair do arquivo
+    if (cor.arquivoImagem) {
+      const match = cor.arquivoImagem.match(/_(\d+)\./);
+      if (match) return match[1];
+    }
+    return '';
   };
 
   const atualizarQuantidade = (corId, delta) => {
@@ -373,7 +385,8 @@ const ModalProduto = ({ produto, onClose, onAdicionarAoCarrinho, getColorImageUr
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 pb-4">
             {produto.cores?.map(cor => {
               const quantidade = selecoes[cor.id] || 0;
-              const codigoCor = extrairCodigoCor(cor.arquivoImagem);
+              const codigoCor = extrairCodigoCor(cor);
+              const imagemUrl = getColorImageUrl(cor.nome);
               return (
                 <div
                   key={cor.id}
@@ -383,11 +396,14 @@ const ModalProduto = ({ produto, onClose, onAdicionarAoCarrinho, getColorImageUr
                 >
                   {/* Imagem/Cor */}
                   <div className="relative mb-2">
-                    {cor.arquivoImagem ? (
+                    {imagemUrl ? (
                       <img
-                        src={getColorImageUrl(cor.arquivoImagem)}
+                        src={imagemUrl}
                         alt={cor.nome}
                         className="w-full h-32 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
                       />
                     ) : (
                       <div
@@ -469,6 +485,7 @@ const ModalProduto = ({ produto, onClose, onAdicionarAoCarrinho, getColorImageUr
 // Componente CarrinhoItem
 const CarrinhoItem = ({ item, onRemover, onAtualizarQuantidade, getColorImageUrl }) => {
   const subtotal = parseFloat(item.produto.precoAtacado) * item.quantidade;
+  const imagemUrl = getColorImageUrl(item.cor.nome);
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -477,11 +494,12 @@ const CarrinhoItem = ({ item, onRemover, onAtualizarQuantidade, getColorImageUrl
           <h4 className="font-medium">{item.produto.nome}</h4>
           <p className="text-sm text-gray-600">Código: {item.produto.codigo}</p>
           <div className="flex items-center gap-2 mt-2">
-            {item.cor.arquivoImagem ? (
+            {imagemUrl ? (
               <img
-                src={getColorImageUrl(item.cor.arquivoImagem)}
+                src={imagemUrl}
                 alt={item.cor.nome}
                 className="w-8 h-8 rounded object-cover"
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
             ) : (
               <div
