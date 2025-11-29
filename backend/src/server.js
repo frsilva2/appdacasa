@@ -103,11 +103,17 @@ if (NODE_ENV === 'development') {
 // Arquivos estáticos (uploads) - ANTES do rate limiter para não limitar imagens
 app.use('/uploads', express.static('uploads'));
 
-// Arquivos estáticos (assets do Google Drive) - ANTES do rate limiter
-app.use('/assets', express.static(ASSETS_PATH));
-app.use('/assets/cores/fotos', express.static(path.join(ASSETS_PATH, 'cores', 'fotos')));
-app.use('/assets/etiquetas', express.static(path.join(ASSETS_PATH, 'etiquetas')));
-app.use('/assets/logo', express.static(path.join(ASSETS_PATH, 'logo')));
+// Arquivos estáticos (public - assets integrados ao projeto)
+const PUBLIC_PATH = path.join(__dirname, '../public');
+app.use('/assets', express.static(path.join(PUBLIC_PATH, 'assets')));
+
+// Arquivos estáticos (assets do Google Drive) - FALLBACK para desenvolvimento local
+if (fs.existsSync(ASSETS_PATH)) {
+  app.use('/assets', express.static(ASSETS_PATH));
+  app.use('/assets/cores/fotos', express.static(path.join(ASSETS_PATH, 'cores', 'fotos')));
+  app.use('/assets/etiquetas', express.static(path.join(ASSETS_PATH, 'etiquetas')));
+  app.use('/assets/logo', express.static(path.join(ASSETS_PATH, 'logo')));
+}
 
 // Rate limiting (aplicado apenas às rotas da API, não aos assets)
 app.use(rateLimiter);
