@@ -311,12 +311,13 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                           )}
                         </div>
 
+                        {/* Botões +/- com campo de metragem */}
                         <div className="flex">
                           <button
                             type="button"
                             onClick={() => decrementarCor(cor)}
                             disabled={quantidade === 0}
-                            className={`flex-1 py-2 flex items-center justify-center border-t transition-colors ${
+                            className={`w-12 py-2 flex items-center justify-center border-t transition-colors ${
                               quantidade === 0
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : 'bg-white hover:bg-red-50 text-red-600'
@@ -324,10 +325,17 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                           >
                             <Minus size={16} />
                           </button>
+                          <div className={`flex-1 py-2 text-center font-bold border-t border-l border-r ${
+                            quantidade > 0
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-50 text-gray-400'
+                          }`}>
+                            {quantidade * 60}m
+                          </div>
                           <button
                             type="button"
                             onClick={() => incrementarCor(cor)}
-                            className="flex-1 py-2 flex items-center justify-center bg-white hover:bg-green-50 text-green-600 border-t border-l transition-colors"
+                            className="w-12 py-2 flex items-center justify-center bg-white hover:bg-green-50 text-green-600 border-t transition-colors"
                           >
                             <Plus size={16} />
                           </button>
