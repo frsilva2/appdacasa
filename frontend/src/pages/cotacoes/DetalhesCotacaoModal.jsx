@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { X, Calendar, User, Clock, Package, DollarSign, TrendingUp, TrendingDown, Link as LinkIcon, MessageCircle, Check, XCircle, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor } from '../../utils/coresMapping';
 
 const DetalhesCotacaoModal = ({ cotacao, onClose, onConcluir, onCancelar, onEditar }) => {
   const getColorImageUrl = (cor) => {
-    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    // SEMPRE usa o mapeamento primeiro (banco tem valores incorretos)
+    let fileName = getArquivoImagemCor(cor.nome);
+    if (!fileName) {
+      fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    }
     if (!fileName) return null;
     return getUrlFotoCor(fileName);
   };

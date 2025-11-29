@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, CheckCircle, XCircle, AlertCircle, Package, User, MapPin, CreditCard } from 'lucide-react';
 import api from '../../services/api';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const AprovarPedidoModal = ({ pedido, onClose, onSuccess }) => {
@@ -9,9 +10,14 @@ const AprovarPedidoModal = ({ pedido, onClose, onSuccess }) => {
   const [acao, setAcao] = useState(null); // 'aprovar' ou 'recusar'
   const [justificativaRecusa, setJustificativaRecusa] = useState('');
 
-  const getColorImageUrl = (arquivoImagem) => {
-    if (!arquivoImagem) return null;
-    return getUrlFotoCor(arquivoImagem);
+  const getColorImageUrl = (cor) => {
+    // SEMPRE usa o mapeamento primeiro (banco tem valores incorretos)
+    let fileName = getArquivoImagemCor(cor.nome);
+    if (!fileName) {
+      fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    }
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
   };
 
   const calcularTotal = () => {
@@ -184,18 +190,21 @@ const AprovarPedidoModal = ({ pedido, onClose, onSuccess }) => {
               {pedido.items.map((item, index) => (
                 <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                   {/* Imagem da Cor */}
-                  {item.cor.arquivoImagem ? (
+                  {getColorImageUrl(item.cor) ? (
                     <img
-                      src={getColorImageUrl(item.cor.arquivoImagem)}
+                      src={getColorImageUrl(item.cor)}
                       alt={item.cor.nome}
                       className="w-16 h-16 rounded object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.querySelector('div')?.classList.remove('hidden');
+                      }}
                     />
-                  ) : (
-                    <div
-                      className="w-16 h-16 rounded"
-                      style={{ backgroundColor: item.cor.codigoHex || '#ccc' }}
-                    />
-                  )}
+                  ) : null}
+                  <div
+                    className={`w-16 h-16 rounded ${getColorImageUrl(item.cor) ? 'hidden' : ''}`}
+                    style={{ backgroundColor: item.cor.codigoHex || '#ccc' }}
+                  />
 
                   {/* Info do Produto */}
                   <div className="flex-1">

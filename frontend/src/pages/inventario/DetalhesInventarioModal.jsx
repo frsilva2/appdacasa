@@ -3,11 +3,16 @@ import { X, Package, AlertTriangle, Edit2, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUrlFotoCor } from '../../services/assets';
+import { getArquivoImagemCor } from '../../utils/coresMapping';
 
 const DetalhesInventarioModal = ({ inventario: inventarioProp, onClose, onReload }) => {
   const { user } = useAuth();
   const getColorImageUrl = (cor) => {
-    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    // SEMPRE usa o mapeamento primeiro (banco tem valores incorretos)
+    let fileName = getArquivoImagemCor(cor.nome);
+    if (!fileName) {
+      fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    }
     if (!fileName) return null;
     return getUrlFotoCor(fileName);
   };
