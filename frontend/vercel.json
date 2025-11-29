@@ -1,7 +1,27 @@
 {
+  "headers": [
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!assets|manifest\\.json|sw\\.js|workbox-.*\\.js|icon-.*\\.png|favicon\\.ico|logo\\.svg|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ],
