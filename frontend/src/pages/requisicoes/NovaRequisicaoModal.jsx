@@ -99,12 +99,12 @@ const NovaRequisicaoModal = ({ onClose, onSuccess }) => {
   };
 
   const getColorImageUrl = (cor) => {
-    // Primeiro tenta pelo arquivoImagem do banco
-    let fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    // SEMPRE usa o mapeamento primeiro (banco tem valores incorretos)
+    let fileName = getArquivoImagemCor(cor.nome);
 
-    // Se não existir, tenta pelo mapeamento usando o nome da cor
+    // Fallback para o banco só se mapeamento não encontrar
     if (!fileName) {
-      fileName = getArquivoImagemCor(cor.nome);
+      fileName = cor.arquivoImagem || cor.arquivo_imagem;
     }
 
     if (!fileName) return null;
