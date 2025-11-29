@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X, Send, Trash2, Package, Plus, Minus } from 'lucide-react';
 import api from '../../services/api';
 import { getUrlFotoCor } from '../../services/assets';
+import { getCodigoCor, getArquivoImagemCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ProductAutocomplete from '../../components/ProductAutocomplete';
 
@@ -16,11 +17,15 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
   const [prazoExpiracao, setPrazoExpiracao] = useState('');
   const [tokensGerados, setTokensGerados] = useState(null);
 
-  // Extrair código do arquivo de imagem (formato: nomedacor_CODIGO.jpg)
-  const extrairCodigoCor = (arquivoImagem) => {
-    if (!arquivoImagem) return '';
-    const match = arquivoImagem.match(/_(\d+)\./);
-    return match ? match[1] : '';
+  // Extrair código da cor (3 dígitos) usando mapeamento pelo nome
+  const extrairCodigoCor = (cor) => {
+    // Primeiro tenta pelo arquivoImagem (se existir no banco)
+    if (cor.arquivoImagem) {
+      const match = cor.arquivoImagem.match(/_(\d+)\./);
+      if (match) return match[1];
+    }
+    // Senão, usa o mapeamento pelo nome da cor
+    return getCodigoCor(cor.nome);
   };
 
   useEffect(() => {
@@ -96,9 +101,15 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
   };
 
   const getColorImageUrl = (cor) => {
-    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    // Primeiro tenta pelo arquivoImagem do banco
+    let fileName = cor.arquivoImagem || cor.arquivo_imagem;
+
+    // Se não existir, tenta pelo mapeamento usando o nome da cor
+    if (!fileName) {
+      fileName = getArquivoImagemCor(cor.nome);
+    }
+
     if (!fileName) return null;
-    // Assets ficam no servidor base, não na rota /api
     return getUrlFotoCor(fileName);
   };
 
@@ -282,7 +293,7 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
                   {coresFiltradas.map((cor) => {
                     const quantidade = getQuantidadeCor(cor.id);
                     const imagemUrl = getColorImageUrl(cor);
-                    const codigoCor = extrairCodigoCor(cor.arquivoImagem);
+                    const codigoCor = extrairCodigoCor(cor);
 
                     return (
                       <div
