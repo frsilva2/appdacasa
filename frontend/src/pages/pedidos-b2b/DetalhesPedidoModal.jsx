@@ -1,6 +1,12 @@
 import { X, Calendar, User, Package, DollarSign, MapPin, CreditCard, Truck, Clock } from 'lucide-react';
+import { getUrlFotoCor } from '../../services/assets';
 
 const DetalhesPedidoModal = ({ pedido, onClose }) => {
+  const getColorImageUrl = (cor) => {
+    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
+  };
   const getStatusBadge = (status) => {
     const badges = {
       PENDENTE: { label: 'Pendente', class: 'bg-yellow-100 text-yellow-800' },
@@ -239,10 +245,24 @@ const DetalhesPedidoModal = ({ pedido, onClose }) => {
                   <div key={item.id} className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <div
-                          className="w-12 h-12 rounded-full border-2 border-gray-300"
-                          style={{ backgroundColor: item.cor.codigoHex }}
-                        />
+                        <div className="w-12 h-12 rounded-full border-2 border-gray-300 overflow-hidden">
+                          {getColorImageUrl(item.cor) ? (
+                            <img
+                              src={getColorImageUrl(item.cor)}
+                              alt={item.cor.nome}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.style.backgroundColor = item.cor.codigoHex || '#CCCCCC';
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full"
+                              style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
+                            />
+                          )}
+                        </div>
                         <div>
                           <h4 className="font-bold text-lg text-gray-900">
                             {item.produto.nome}

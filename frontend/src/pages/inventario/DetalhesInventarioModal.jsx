@@ -2,9 +2,15 @@ import { useState, useEffect } from 'react';
 import { X, Package, AlertTriangle, Edit2, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getUrlFotoCor } from '../../services/assets';
 
 const DetalhesInventarioModal = ({ inventario: inventarioProp, onClose, onReload }) => {
   const { user } = useAuth();
+  const getColorImageUrl = (cor) => {
+    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
+  };
   const [inventario, setInventario] = useState(inventarioProp);
   const [loading, setLoading] = useState(false);
   const [editandoItem, setEditandoItem] = useState(null);
@@ -141,7 +147,24 @@ const DetalhesInventarioModal = ({ inventario: inventarioProp, onClose, onReload
                   <div key={item.id} className={`border-2 rounded-lg p-4 ${temDivergencia ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full border-2 border-gray-300" style={{ backgroundColor: item.cor.codigoHex }} />
+                        <div className="w-10 h-10 rounded-full border-2 border-gray-300 overflow-hidden">
+                          {getColorImageUrl(item.cor) ? (
+                            <img
+                              src={getColorImageUrl(item.cor)}
+                              alt={item.cor.nome}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.style.backgroundColor = item.cor.codigoHex || '#CCCCCC';
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full"
+                              style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
+                            />
+                          )}
+                        </div>
                         <div>
                           <h4 className="font-bold text-lg text-gray-900">{item.produto.nome}</h4>
                           <p className="text-sm text-gray-600">Cor: {item.cor.nome}</p>

@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { X, Calendar, User, Clock, Package, DollarSign, TrendingUp, TrendingDown, Link as LinkIcon, MessageCircle, Check, XCircle, Edit, ChevronDown, ChevronUp } from 'lucide-react';
+import { getUrlFotoCor } from '../../services/assets';
 
 const DetalhesCotacaoModal = ({ cotacao, onClose, onConcluir, onCancelar, onEditar }) => {
+  const getColorImageUrl = (cor) => {
+    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
+  };
   const [linksExpanded, setLinksExpanded] = useState(false);
   const prazoExpirado = new Date(cotacao.prazoResposta) < new Date();
 
@@ -222,10 +228,24 @@ const DetalhesCotacaoModal = ({ cotacao, onClose, onConcluir, onCancelar, onEdit
                     {/* Cabeçalho do Produto */}
                     <div className="flex items-center justify-between mb-4 pb-4 border-b">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-full border-2 border-gray-300"
-                          style={{ backgroundColor: item.cor.codigoHex }}
-                        />
+                        <div className="w-10 h-10 rounded-full border-2 border-gray-300 overflow-hidden">
+                          {getColorImageUrl(item.cor) ? (
+                            <img
+                              src={getColorImageUrl(item.cor)}
+                              alt={item.cor.nome}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.style.backgroundColor = item.cor.codigoHex || '#CCCCCC';
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full"
+                              style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
+                            />
+                          )}
+                        </div>
                         <div>
                           <h4 className="font-bold text-lg text-gray-900">
                             {item.produto.nome}

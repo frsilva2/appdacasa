@@ -291,30 +291,47 @@ const NovaRequisicaoModal = ({ onClose, onSuccess }) => {
                       Itens da Requisição ({items.length})
                     </h3>
                     <div className="space-y-2">
-                      {items.map((item, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
-                          <div
-                            className="w-12 h-12 rounded flex-shrink-0 border"
-                            style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-gray-900 truncate">
-                              {item.produto.nome}
-                            </p>
-                            <p className="text-xs text-gray-600 truncate">{item.cor.nome}</p>
-                            <p className="text-xs font-semibold text-blue-600">
-                              {item.quantidadeSolicitada / 60} peças × 60m = {item.quantidadeSolicitada}m
-                            </p>
+                      {items.map((item, index) => {
+                        const imagemUrl = getColorImageUrl(item.cor);
+                        return (
+                          <div key={index} className="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+                            <div className="w-12 h-12 rounded flex-shrink-0 border overflow-hidden">
+                              {imagemUrl ? (
+                                <img
+                                  src={imagemUrl}
+                                  alt={item.cor.nome}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.style.backgroundColor = item.cor.codigoHex || '#CCCCCC';
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  className="w-full h-full"
+                                  style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
+                                />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-gray-900 truncate">
+                                {item.produto.nome}
+                              </p>
+                              <p className="text-xs text-gray-600 truncate">{item.cor.nome}</p>
+                              <p className="text-xs font-semibold text-blue-600">
+                                {item.quantidadeSolicitada / 60} peças × 60m = {item.quantidadeSolicitada}m
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removerItem(index)}
+                              className="text-red-600 hover:text-red-800 p-2"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removerItem(index)}
-                            className="text-red-600 hover:text-red-800 p-2"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

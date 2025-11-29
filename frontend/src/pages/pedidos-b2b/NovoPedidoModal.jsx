@@ -357,14 +357,29 @@ const NovoPedidoModal = ({ onClose, onSuccess }) => {
                     const subtotal = item.precoUnitario
                       ? parseFloat(item.quantidade) * parseFloat(item.precoUnitario)
                       : 0;
+                    const imagemUrl = getColorImageUrl(item.cor);
 
                     return (
                       <div key={index} className="bg-gray-50 rounded-lg p-3">
                         <div className="flex items-center gap-3 mb-2">
-                          <div
-                            className="w-12 h-12 rounded flex-shrink-0 border"
-                            style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
-                          />
+                          <div className="w-12 h-12 rounded flex-shrink-0 border overflow-hidden">
+                            {imagemUrl ? (
+                              <img
+                                src={imagemUrl}
+                                alt={item.cor.nome}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.style.backgroundColor = item.cor.codigoHex || '#CCCCCC';
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="w-full h-full"
+                                style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
+                              />
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-gray-900 truncate">
                               {item.produto.nome}

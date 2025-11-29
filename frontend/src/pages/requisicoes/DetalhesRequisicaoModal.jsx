@@ -1,6 +1,12 @@
 import { X, FileText, User, Calendar, Package, Check, XCircle, AlertCircle } from 'lucide-react';
+import { getUrlFotoCor } from '../../services/assets';
 
 const DetalhesRequisicaoModal = ({ requisicao, onClose }) => {
+  const getColorImageUrl = (cor) => {
+    const fileName = cor.arquivoImagem || cor.arquivo_imagem;
+    if (!fileName) return null;
+    return getUrlFotoCor(fileName);
+  };
   const getStatusBadge = (status) => {
     const badges = {
       PENDENTE: { label: 'Pendente', class: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
@@ -129,10 +135,24 @@ const DetalhesRequisicaoModal = ({ requisicao, onClose }) => {
                       <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-700 font-bold text-sm">
                         {index + 1}
                       </span>
-                      <div
-                        className="w-12 h-12 rounded-full border-2 border-gray-300"
-                        style={{ backgroundColor: item.cor.codigoHex }}
-                      />
+                      <div className="w-12 h-12 rounded-full border-2 border-gray-300 overflow-hidden">
+                        {getColorImageUrl(item.cor) ? (
+                          <img
+                            src={getColorImageUrl(item.cor)}
+                            alt={item.cor.nome}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.style.backgroundColor = item.cor.codigoHex || '#CCCCCC';
+                            }}
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full"
+                            style={{ backgroundColor: item.cor.codigoHex || '#CCCCCC' }}
+                          />
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex-1">
