@@ -5,6 +5,27 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './index.css';
 
+// Limpa service workers antigos para evitar problemas de cache
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.update();
+    });
+  });
+
+  // Limpa caches antigos do navegador
+  if ('caches' in window) {
+    caches.keys().then((cacheNames) => {
+      cacheNames.forEach((cacheName) => {
+        // Mantém apenas caches recentes do workbox
+        if (!cacheName.includes('workbox-precache')) {
+          caches.delete(cacheName);
+        }
+      });
+    });
+  }
+}
+
 // Configuração do React Query
 const queryClient = new QueryClient({
   defaultOptions: {
