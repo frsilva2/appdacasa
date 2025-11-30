@@ -19,13 +19,20 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
 
   // Extrair código da cor (3 dígitos) usando mapeamento pelo nome
   const extrairCodigoCor = (cor) => {
-    // Primeiro tenta pelo arquivoImagem (se existir no banco)
+    // Primeiro tenta pelo mapeamento usando o nome da cor (MAIS CONFIÁVEL)
+    const codigoMapeamento = getCodigoCor(cor.nome);
+    if (codigoMapeamento) {
+      return codigoMapeamento;
+    }
+
+    // Se não encontrar no mapeamento, tenta extrair do arquivoImagem
     if (cor.arquivoImagem) {
       const match = cor.arquivoImagem.match(/_(\d+)\./);
       if (match) return match[1];
     }
-    // Senão, usa o mapeamento pelo nome da cor
-    return getCodigoCor(cor.nome);
+
+    // Fallback: retorna vazio se não encontrar
+    return '';
   };
 
   useEffect(() => {
@@ -329,30 +336,30 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
                         </div>
 
                         {/* Nome e Código */}
-                        <div className="p-2 bg-white border-t text-center">
-                          <p className="text-xs font-medium text-gray-900 truncate" title={cor.nome}>
+                        <div className="p-3 bg-white border-t">
+                          <p className="text-xs font-medium text-gray-900 truncate text-center mb-1" title={cor.nome}>
                             {cor.nome}
                           </p>
-                          {codigoCor && (
-                            <p className="text-sm font-bold text-blue-600">{codigoCor}</p>
-                          )}
+                          <p className="text-lg font-bold text-blue-600 text-center">
+                            {codigoCor || '---'}
+                          </p>
                         </div>
 
                         {/* Botões +/- com campo de metragem */}
-                        <div className="flex">
+                        <div className="flex items-stretch border-t">
                           <button
                             type="button"
                             onClick={() => decrementarCor(cor)}
                             disabled={quantidade === 0}
-                            className={`w-12 py-2 flex items-center justify-center border-t transition-colors ${
+                            className={`w-14 py-3 flex items-center justify-center transition-colors ${
                               quantidade === 0
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'bg-white hover:bg-red-50 text-red-600'
+                                : 'bg-white hover:bg-red-50 text-red-600 active:bg-red-100'
                             }`}
                           >
-                            <Minus size={16} />
+                            <Minus size={18} />
                           </button>
-                          <div className={`flex-1 py-2 text-center font-bold border-t border-l border-r ${
+                          <div className={`flex-1 py-3 text-center font-extrabold text-base border-l border-r ${
                             quantidade > 0
                               ? 'bg-blue-50 text-blue-700'
                               : 'bg-gray-50 text-gray-400'
@@ -362,9 +369,9 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
                           <button
                             type="button"
                             onClick={() => incrementarCor(cor)}
-                            className="w-12 py-2 flex items-center justify-center bg-white hover:bg-green-50 text-green-600 border-t transition-colors"
+                            className="w-14 py-3 flex items-center justify-center bg-white hover:bg-green-50 text-green-600 active:bg-green-100 transition-colors"
                           >
-                            <Plus size={16} />
+                            <Plus size={18} />
                           </button>
                         </div>
                       </div>
