@@ -56,14 +56,26 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS - Aceitar múltiplas origens localhost em desenvolvimento
+// CORS - Aceitar múltiplas origens
+// FRONTEND_URL pode ser uma única URL ou múltiplas separadas por vírgula
+// Exemplo: https://app.vercel.app,https://app2.vercel.app
+const frontendUrls = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : [];
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
   'http://localhost:3000',
-  process.env.FRONTEND_URL
+  ...frontendUrls
 ].filter(Boolean);
+
+// Padrões permitidos (wildcards) - útil para ambientes de preview do Vercel
+const allowedPatterns = [
+  /^https:\/\/.*\.vercel\.app$/,  // Qualquer subdomínio .vercel.app
+  /^https:\/\/.*\.netlify\.app$/  // Qualquer subdomínio .netlify.app
+];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -80,9 +92,18 @@ app.use(cors({
       return callback(null, true);
     }
 
+    // Verificar padrões permitidos (wildcards)
+    if (allowedPatterns.some(pattern => pattern.test(origin))) {
+      return callback(null, true);
+    }
+
+    // Log de origem bloqueada para debug
+    logger.warn(`🚫 CORS bloqueou origem: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Body parsers
