@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import CorCard from './CorCard';
-import { getCores, searchCores } from '../../services/assets';
+import { getCores, searchCores, ordenarCoresCustomizada } from '../../services/assets';
 
 /**
  * Grid de cores com busca e filtros
@@ -21,7 +21,7 @@ const CoresGrid = ({
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [busca, setBusca] = useState('');
-  const [ordenacao, setOrdenacao] = useState('nome'); // 'nome', 'hex'
+  const [ordenacao, setOrdenacao] = useState('padrao'); // 'padrao', 'nome', 'hex'
 
   // Carregar cores ao montar componente
   useEffect(() => {
@@ -59,14 +59,14 @@ const CoresGrid = ({
     }
 
     // Ordenar
-    resultado.sort((a, b) => {
-      if (ordenacao === 'nome') {
-        return a.nome_cor.localeCompare(b.nome_cor);
-      } else if (ordenacao === 'hex') {
-        return a.hex.localeCompare(b.hex);
-      }
-      return 0;
-    });
+    if (ordenacao === 'padrao') {
+      // Usar ordem customizada
+      resultado = ordenarCoresCustomizada(resultado);
+    } else if (ordenacao === 'nome') {
+      resultado.sort((a, b) => a.nome_cor.localeCompare(b.nome_cor));
+    } else if (ordenacao === 'hex') {
+      resultado.sort((a, b) => a.hex.localeCompare(b.hex));
+    }
 
     setCoresExibidas(resultado);
   };
@@ -124,7 +124,8 @@ const CoresGrid = ({
             onChange={(e) => setOrdenacao(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           >
-            <option value="nome">Nome</option>
+            <option value="padrao">Ordem Padrão</option>
+            <option value="nome">Nome (A-Z)</option>
             <option value="hex">Código Hex</option>
           </select>
         </div>

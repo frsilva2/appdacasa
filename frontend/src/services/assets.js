@@ -164,6 +164,83 @@ export const getUrlLogo = (formato = 'svg') => {
 // ==========================================
 
 /**
+ * Ordem customizada das cores para exibição
+ * Define a ordem preferencial de exibição das cores no sistema
+ */
+export const ORDEM_CORES_CUSTOMIZADA = [
+  'Branco',
+  'Preto',
+  'Azul Marinho',
+  'Bege Médio',
+  'Nude',
+  'Rosa Pink',
+  'Cinza',
+  'Off-White',
+  'Vermelho',
+  'Rosa Bebê',
+  'Azul Royal',
+  'Marrom',
+  'Rosa Claro',
+  'Cinza Grafite',
+  'Azul Celeste',
+  'Caramelo',
+  'Bege Marfim',
+  'Salmão',
+  'Rosa Antigo',
+  'Vinho',
+  'Verde Bandeira',
+  'Cinza Claro',
+  'Azul Bebê',
+  'Laranja',
+  'Amarelo Ouro',
+  'Verde Oliva',
+  'Marsala',
+  'Amarelo Mostarda',
+  'Roxo',
+  'Terracota',
+  'Verde Floresta',
+  'Cinza Escuro',
+  'Marrom Café',
+  'Azul Marinho Noite',
+  'Verde Menta',
+  'Lilás Claro',
+  'Azul Serenity',
+  'Verde Azeitona',
+  'Amarelo Dourado',
+  'Verde Água',
+  'Off Amarelado',
+  'Vermelho Escuro',
+  'Verde Musgo',
+  'Amarelo Pastel'
+];
+
+/**
+ * Ordenar cores pela ordem customizada
+ * @param {Array} cores - Array de cores a ordenar
+ * @returns {Array} Cores ordenadas
+ */
+export const ordenarCoresCustomizada = (cores) => {
+  return [...cores].sort((a, b) => {
+    const indexA = ORDEM_CORES_CUSTOMIZADA.indexOf(a.nome_cor);
+    const indexB = ORDEM_CORES_CUSTOMIZADA.indexOf(b.nome_cor);
+
+    // Se ambas estão na lista customizada, usar a ordem definida
+    if (indexA !== -1 && indexB !== -1) {
+      return indexA - indexB;
+    }
+
+    // Se apenas A está na lista, A vem primeiro
+    if (indexA !== -1) return -1;
+
+    // Se apenas B está na lista, B vem primeiro
+    if (indexB !== -1) return 1;
+
+    // Se nenhuma está na lista, ordenar alfabeticamente
+    return a.nome_cor.localeCompare(b.nome_cor);
+  });
+};
+
+/**
  * Verificar se uma cor é clara ou escura (para contraste de texto)
  * @param {string} hex - Código hexadecimal da cor
  * @returns {boolean} true se for clara, false se for escura
@@ -213,5 +290,7 @@ export default {
 
   // Helpers
   isCorClara,
-  getCorTextoContraste
+  getCorTextoContraste,
+  ordenarCoresCustomizada,
+  ORDEM_CORES_CUSTOMIZADA
 };

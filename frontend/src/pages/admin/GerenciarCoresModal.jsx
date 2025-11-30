@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, CheckCircle2, Palette } from 'lucide-react';
 import api from '../../services/api';
-import { getUrlFotoCor } from '../../services/assets';
+import { getUrlFotoCor, ordenarCoresCustomizada } from '../../services/assets';
 import { getArquivoImagemCor, getCodigoCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -141,6 +141,15 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
   const nomesExistentes = new Set(coresDoProduct.map(c => c.nome));
   const coresFaltantes = coresDisponiveis.filter(cor => !nomesExistentes.has(cor.nome));
 
+  // Ordenar cores pela ordem customizada
+  const coresDoProductOrdenadas = ordenarCoresCustomizada(
+    coresDoProduct.map(cor => ({ ...cor, nome_cor: cor.nome }))
+  ).map(cor => ({ ...cor, nome: cor.nome_cor }));
+
+  const coresFaltantesOrdenadas = ordenarCoresCustomizada(
+    coresFaltantes.map(cor => ({ ...cor, nome_cor: cor.nome }))
+  ).map(cor => ({ ...cor, nome: cor.nome_cor }));
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
@@ -180,7 +189,7 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {coresDoProduct.map((cor) => {
+                    {coresDoProductOrdenadas.map((cor) => {
                       const codigo = extrairCodigoCor(cor);
                       const imagemUrl = getColorImageUrl(cor.nome);
                       return (
@@ -275,7 +284,7 @@ const GerenciarCoresModal = ({ produto, onClose, onSuccess }) => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {coresFaltantes.map((cor) => {
+                    {coresFaltantesOrdenadas.map((cor) => {
                       const codigo = extrairCodigoCor(cor);
                       const imagemUrl = getColorImageUrl(cor.nome);
                       return (
