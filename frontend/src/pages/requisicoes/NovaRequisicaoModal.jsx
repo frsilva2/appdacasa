@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Trash2, Package, Plus, Minus } from 'lucide-react';
 import api from '../../services/api';
-import { getUrlFotoCor } from '../../services/assets';
+import { getUrlFotoCor, ordenarCoresCustomizada } from '../../services/assets';
 import { getCodigoCor, getArquivoImagemCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ProductAutocomplete from '../../components/ProductAutocomplete';
@@ -147,9 +147,14 @@ const NovaRequisicaoModal = ({ onClose, onSuccess }) => {
     }
   };
 
-  const coresFiltradas = produto?.cores.filter(cor =>
-    cor.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  // Filtrar e ordenar cores
+  const coresFiltradas = produto?.cores
+    ? ordenarCoresCustomizada(
+        produto.cores
+          .filter(cor => cor.nome.toLowerCase().includes(searchTerm.toLowerCase()))
+          .map(cor => ({ ...cor, nome_cor: cor.nome }))
+      ).map(cor => ({ ...cor, nome: cor.nome_cor }))
+    : [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

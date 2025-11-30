@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { X, Send, Trash2, Package, Plus, Minus } from 'lucide-react';
 import api from '../../services/api';
-import { getUrlFotoCor } from '../../services/assets';
+import { getUrlFotoCor, ordenarCoresCustomizada } from '../../services/assets';
 import { getCodigoCor, getArquivoImagemCor } from '../../utils/coresMapping';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ProductAutocomplete from '../../components/ProductAutocomplete';
@@ -167,9 +167,14 @@ const NovaCotacaoModal = ({ onClose, onSuccess }) => {
     alert('Link copiado para a área de transferência!');
   };
 
-  const coresFiltradas = produto?.cores.filter(cor =>
-    cor.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  // Filtrar e ordenar cores
+  const coresFiltradas = produto?.cores
+    ? ordenarCoresCustomizada(
+        produto.cores
+          .filter(cor => cor.nome.toLowerCase().includes(searchTerm.toLowerCase()))
+          .map(cor => ({ ...cor, nome_cor: cor.nome }))
+      ).map(cor => ({ ...cor, nome: cor.nome_cor }))
+    : [];
 
   const getQuantidadeCor = (corId) => {
     const item = items.find(i => i.corId === corId && i.produtoId === produto?.id);

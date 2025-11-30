@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, Palette } from 'lucide-react';
-import { getUrlFotoCor } from '../services/assets';
+import { getUrlFotoCor, ordenarCoresCustomizada } from '../services/assets';
 import { getArquivoImagemCor, getCodigoCor } from '../utils/coresMapping';
 
 const ColorSelector = ({
@@ -13,11 +13,21 @@ const ColorSelector = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filtrar cores pela busca (suporte para nome e nome_cor)
-  const filteredCores = cores.filter(cor => {
-    const nomeCor = cor.nome || cor.nome_cor || '';
-    return nomeCor.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // Filtrar e ordenar cores pela busca (suporte para nome e nome_cor)
+  const filteredCores = ordenarCoresCustomizada(
+    cores
+      .filter(cor => {
+        const nomeCor = cor.nome || cor.nome_cor || '';
+        return nomeCor.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+      .map(cor => ({
+        ...cor,
+        nome_cor: cor.nome || cor.nome_cor
+      }))
+  ).map(cor => ({
+    ...cor,
+    nome: cor.nome_cor
+  }));
 
   // Extrair código do arquivo de imagem usando mapeamento
   const extrairCodigoCor = (cor) => {
