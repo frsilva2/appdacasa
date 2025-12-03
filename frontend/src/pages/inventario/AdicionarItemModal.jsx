@@ -111,7 +111,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
     }
   };
 
-  const handleOCRComplete = (dadosOCR) => {
+  const handleOCRComplete = async (dadosOCR) => {
     console.log('=== OCR COMPLETE ===');
     console.log('Dados OCR recebidos:', dadosOCR);
 
@@ -124,10 +124,8 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
       return;
     }
 
-    console.log('OCR Data:', ocrData);
-    console.log('Informações extraídas:', ocrData.informacoesExtraidas);
-
     const info = ocrData.informacoesExtraidas || {};
+    console.log('Informações extraídas:', info);
 
     // Salvar dados extraídos para exibição
     setDadosOCRExtraidos({
@@ -135,41 +133,50 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
       cor: info.cor,
       codigoCor: info.codigoCor,
       metragem: info.metragem,
-      codigo: info.codigo,
-      po: info.po,
-      seq: info.seq,
       confianca: ocrData.confiancaMedia
     });
 
     // Preencher METRAGEM automaticamente
     if (info.metragem) {
-      console.log('Preenchendo metragem:', info.metragem);
       setQuantidadeContada(info.metragem);
     }
 
-    // Preencher LOTE com SEQ ou PO-SEQ
-    if (info.seq) {
-      const loteFormatado = info.po ? `${info.po}-${info.seq}` : `SEQ-${info.seq}`;
-      console.log('Preenchendo lote:', loteFormatado);
-      setLote(loteFormatado);
-    } else if (info.codigo) {
-      setLote(info.codigo);
+    // Buscar produto no DEPARA se tiver nome do produto
+    if (info.produto) {
+      try {
+        const response = await api.get('/depara');
+        const deparaList = response.data.data || [];
+
+        // Procurar correspondência no DEPARA
+        const produtoEtiqueta = info.produto.toUpperCase();
+        const correspondencia = deparaList.find(item =>
+          produtoEtiqueta.includes(item.nomeFornecedor?.toUpperCase()) ||
+          item.nomeFornecedor?.toUpperCase().includes(produtoEtiqueta.split(' ')[0])
+        );
+
+        if (correspondencia) {
+          console.log('DEPARA encontrado:', correspondencia);
+          // Tentar encontrar o produto no sistema pelo nome do ERP
+          const produtoSistema = produtos.find(p =>
+            p.nome.toUpperCase().includes(correspondencia.nomeERP?.toUpperCase()) ||
+            correspondencia.nomeERP?.toUpperCase().includes(p.nome.toUpperCase())
+          );
+
+          if (produtoSistema) {
+            handleProdutoSelect(produtoSistema);
+            console.log('Produto selecionado automaticamente:', produtoSistema.nome);
+          }
+        }
+      } catch (error) {
+        console.log('Erro ao buscar DEPARA:', error);
+      }
     }
 
-    // Adicionar resumo às observações
-    const resumo = [];
-    if (info.produto) resumo.push(`Produto: ${info.produto}`);
-    if (info.cor) resumo.push(`Cor: ${info.codigoCor ? `#${info.codigoCor} ` : ''}${info.cor}`);
-    if (info.metragem) resumo.push(`Metragem: ${info.metragem} MT`);
+    // Adicionar dados lidos às observações
+    const obs = `[Etiqueta] ${info.produto || 'Produto não lido'} | ${info.cor ? `#${info.codigoCor} ${info.cor}` : 'Cor não lida'} | ${info.metragem ? `${info.metragem} MT` : 'Metragem não lida'}`;
+    setObservacoes(obs);
 
-    if (resumo.length > 0) {
-      setObservacoes(prev => {
-        const novoTexto = `[OCR]\n${resumo.join('\n')}`;
-        return prev ? `${prev}\n\n${novoTexto}` : novoTexto;
-      });
-    }
-
-    // Voltar para modo manual para seleção de produto/cor
+    // Voltar para modo de confirmação
     setModoOCR(false);
   };
 
@@ -247,53 +254,55 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
               </div>
             ) : null}
 
-            {/* Card de Dados Extraídos do OCR */}
+            {/* Card de Dados Lidos da Etiqueta */}
             {dadosOCRExtraidos && !modoOCR && (
-              <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="mb-6 bg-blue-50 border border-blue-300 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-green-800 flex items-center gap-2">
+                  <h3 className="font-bold text-blue-800 flex items-center gap-2">
                     <ScanLine size={20} />
-                    Dados Extraídos da Etiqueta
+                    Dados Lidos da Etiqueta
                   </h3>
-                  <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">
-                    Confiança: {dadosOCRExtraidos.confianca?.toFixed(0) || 'N/A'}%
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setModoOCR(true)}
+                    className="text-xs bg-blue-200 text-blue-800 px-3 py-1 rounded hover:bg-blue-300"
+                  >
+                    Nova Foto
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {/* Produto */}
-                  <div className="bg-white rounded p-3 border border-green-200">
-                    <p className="text-xs text-gray-500 mb-1">PRODUTO</p>
-                    <p className="font-semibold text-gray-900 text-sm">
-                      {dadosOCRExtraidos.produto || 'Não identificado'}
+                  <div className="bg-white rounded p-3 border border-blue-200">
+                    <p className="text-xs text-blue-600 font-medium mb-1">PRODUTO</p>
+                    <p className="font-bold text-gray-900 text-sm leading-tight">
+                      {dadosOCRExtraidos.produto || 'NÃO LIDO'}
                     </p>
-                    {dadosOCRExtraidos.codigo && (
-                      <p className="text-xs text-gray-500 mt-1">Cód: {dadosOCRExtraidos.codigo}</p>
-                    )}
                   </div>
 
                   {/* Cor */}
-                  <div className="bg-white rounded p-3 border border-green-200">
-                    <p className="text-xs text-gray-500 mb-1">COR</p>
-                    <p className="font-semibold text-gray-900 text-sm">
-                      {dadosOCRExtraidos.cor || 'Não identificada'}
+                  <div className="bg-white rounded p-3 border border-blue-200">
+                    <p className="text-xs text-blue-600 font-medium mb-1">COR</p>
+                    <p className="font-bold text-gray-900 text-sm">
+                      {dadosOCRExtraidos.cor || 'NÃO LIDA'}
                     </p>
                     {dadosOCRExtraidos.codigoCor && (
-                      <p className="text-xs text-gray-500 mt-1">#{dadosOCRExtraidos.codigoCor}</p>
+                      <p className="text-xs text-gray-500">#{dadosOCRExtraidos.codigoCor}</p>
                     )}
                   </div>
 
                   {/* Metragem */}
-                  <div className="bg-white rounded p-3 border border-green-200">
-                    <p className="text-xs text-gray-500 mb-1">METRAGEM</p>
-                    <p className="font-semibold text-gray-900 text-lg">
-                      {dadosOCRExtraidos.metragem ? `${dadosOCRExtraidos.metragem} MT` : 'Não identificada'}
+                  <div className="bg-white rounded p-3 border border-blue-200">
+                    <p className="text-xs text-blue-600 font-medium mb-1">METRAGEM</p>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {dadosOCRExtraidos.metragem ? `${dadosOCRExtraidos.metragem}` : 'NÃO LIDA'}
                     </p>
+                    {dadosOCRExtraidos.metragem && <p className="text-xs text-gray-500">metros</p>}
                   </div>
                 </div>
 
-                <p className="text-xs text-green-700 mt-3">
-                  Confira os dados acima e selecione o produto e cor correspondentes no sistema.
+                <p className="text-xs text-blue-700 mt-3 font-medium">
+                  Selecione o produto e cor correspondentes no sistema para confirmar o lançamento.
                 </p>
               </div>
             )}
