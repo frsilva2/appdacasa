@@ -184,10 +184,20 @@ export const createInventario = async (req, res) => {
 };
 
 // Adicionar item ao inventário (OCR ou manual)
+// Agora aceita campos de texto (produtoNome, corNome, codigoCor)
+// IDs de produto/cor são opcionais
 export const adicionarItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { produtoId, corId, quantidadeContada, lote, observacoes, ocrData } = req.body;
+    const {
+      produtoNome,
+      corNome,
+      codigoCor,
+      quantidadeContada,
+      observacoes,
+      fonteOCR,
+      produtoEncontradoDEPARA
+    } = req.body;
 
     const inventario = await prisma.inventario.findUnique({
       where: { id },
@@ -207,40 +217,80 @@ export const adicionarItem = async (req, res) => {
       });
     }
 
-    // Validações
-    if (!produtoId || !corId || quantidadeContada === undefined) {
+    // Validações - apenas nome do produto e quantidade são obrigatórios
+    if (!produtoNome || quantidadeContada === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Produto, cor e quantidade contada são obrigatórios',
+        message: 'Nome do produto e quantidade contada são obrigatórios',
       });
     }
 
-    // Buscar estoque atual (quantidade no sistema)
-    const estoqueAtual = await prisma.estoque.findUnique({
+    const quantidadeContadaFloat = parseFloat(quantidadeContada);
+
+    // Tentar encontrar produto correspondente no sistema (opcional)
+    let produtoId = null;
+    let corId = null;
+    let quantidadeSistema = 0;
+
+    // Buscar produto pelo nome
+    const produtoEncontrado = await prisma.produto.findFirst({
       where: {
-        produtoId_corId_local: {
-          produtoId,
-          corId,
-          local: 'CD',
+        nome: {
+          contains: produtoNome.split(' ')[0], // Buscar pela primeira palavra
         },
       },
     });
 
-    const quantidadeSistema = estoqueAtual ? parseFloat(estoqueAtual.quantidade) : 0;
-    const quantidadeContadaFloat = parseFloat(quantidadeContada);
+    if (produtoEncontrado) {
+      produtoId = produtoEncontrado.id;
+
+      // Se encontrou produto, tentar encontrar cor
+      if (corNome) {
+        const corEncontrada = await prisma.cor.findFirst({
+          where: {
+            produtoId: produtoEncontrado.id,
+            nome: {
+              contains: corNome,
+            },
+          },
+        });
+
+        if (corEncontrada) {
+          corId = corEncontrada.id;
+
+          // Buscar estoque atual
+          const estoqueAtual = await prisma.estoque.findUnique({
+            where: {
+              produtoId_corId_local: {
+                produtoId,
+                corId,
+                local: 'CD',
+              },
+            },
+          });
+
+          quantidadeSistema = estoqueAtual ? parseFloat(estoqueAtual.quantidade) : 0;
+        }
+      }
+    }
+
     const divergencia = quantidadeContadaFloat - quantidadeSistema;
 
+    // Criar item com campos de texto
     const item = await prisma.inventarioItem.create({
       data: {
         inventarioId: id,
+        produtoNome: produtoNome.trim(),
+        corNome: corNome ? corNome.trim() : null,
+        codigoCor: codigoCor ? codigoCor.trim() : null,
         produtoId,
         corId,
         quantidadeSistema: quantidadeSistema.toString(),
         quantidadeContada: quantidadeContadaFloat.toString(),
         divergencia: divergencia.toString(),
-        lote,
-        observacoes,
-        ocrData: ocrData ? JSON.stringify(ocrData) : null,
+        observacoes: observacoes || null,
+        fonteOCR: fonteOCR || false,
+        produtoNoDEPARA: produtoEncontradoDEPARA || false,
       },
       include: {
         produto: true,
@@ -248,7 +298,8 @@ export const adicionarItem = async (req, res) => {
       },
     });
 
-    logger.info(`Item adicionado ao inventário ${inventario.numero}: ${item.produto.nome} - ${item.cor.nome}`);
+    const corDisplay = corNome ? `#${codigoCor || ''} ${corNome}` : 'Sem cor';
+    logger.info(`Item adicionado ao inventário ${inventario.numero}: ${produtoNome} - ${corDisplay}`);
 
     res.status(201).json({
       success: true,
@@ -409,47 +460,54 @@ export const finalizarInventario = async (req, res) => {
     }
 
     // Atualizar estoque com base nas contagens
+    // Só atualiza se produtoId e corId estiverem disponíveis
     for (const item of inventario.items) {
       const quantidadeContada = parseFloat(item.quantidadeContada);
       const quantidadeSistema = parseFloat(item.quantidadeSistema);
 
-      // Atualizar ou criar registro de estoque
-      await prisma.estoque.upsert({
-        where: {
-          produtoId_corId_local: {
-            produtoId: item.produtoId,
-            corId: item.corId,
-            local: 'CD',
+      // Só atualiza estoque se tiver IDs válidos
+      if (item.produtoId && item.corId) {
+        // Atualizar ou criar registro de estoque
+        await prisma.estoque.upsert({
+          where: {
+            produtoId_corId_local: {
+              produtoId: item.produtoId,
+              corId: item.corId,
+              local: 'CD',
+            },
           },
-        },
-        update: {
-          quantidade: quantidadeContada,
-          ultimaContagem: new Date(),
-        },
-        create: {
-          produtoId: item.produtoId,
-          corId: item.corId,
-          local: 'CD',
-          quantidade: quantidadeContada,
-          ultimaContagem: new Date(),
-        },
-      });
-
-      // Criar movimento de estoque (apenas se houver divergência)
-      const divergencia = parseFloat(item.divergencia);
-      if (divergencia !== 0) {
-        await prisma.movimentacaoEstoque.create({
-          data: {
+          update: {
+            quantidade: quantidadeContada,
+            ultimaContagem: new Date(),
+          },
+          create: {
             produtoId: item.produtoId,
             corId: item.corId,
-            tipo: 'INVENTARIO',
-            quantidade: Math.abs(divergencia),
-            quantidadeAntes: quantidadeSistema,
-            quantidadeDepois: quantidadeContada,
             local: 'CD',
-            observacoes: `Inventário ${inventario.numero} - Ajuste de estoque`,
+            quantidade: quantidadeContada,
+            ultimaContagem: new Date(),
           },
         });
+
+        // Criar movimento de estoque (apenas se houver divergência)
+        const divergencia = parseFloat(item.divergencia);
+        if (divergencia !== 0) {
+          await prisma.movimentacaoEstoque.create({
+            data: {
+              produtoId: item.produtoId,
+              corId: item.corId,
+              tipo: 'INVENTARIO',
+              quantidade: Math.abs(divergencia),
+              quantidadeAntes: quantidadeSistema,
+              quantidadeDepois: quantidadeContada,
+              local: 'CD',
+              observacoes: `Inventário ${inventario.numero} - Ajuste de estoque`,
+            },
+          });
+        }
+      } else {
+        // Item sem IDs - registrar apenas para referência (não atualiza estoque)
+        logger.info(`Item ${item.produtoNome} sem IDs de produto/cor - estoque não atualizado automaticamente`);
       }
     }
 
