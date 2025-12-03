@@ -317,15 +317,24 @@ function extrairInformacoesEtiqueta(texto) {
   // Se não encontrou cor, tentar padrões genéricos e cores conhecidas
   if (!info.cor) {
     const coresConhecidas = [
+      // Cores básicas
       'branco', 'preto', 'azul', 'vermelho', 'verde', 'amarelo', 'rosa',
       'roxo', 'laranja', 'marrom', 'cinza', 'bege', 'nude', 'vinho',
       'prata', 'dourado', 'gold', 'silver', 'red', 'blue', 'green',
-      'amarelo', 'capuccino', 'cappuccino', 'caramelo', 'chocolate',
+      // Cores EUROTEXTIL específicas
+      'titanio', 'titânio', 'ferrugem', 'capuccino', 'cappuccino',
+      'maça verde', 'maca verde', 'maçã verde',
+      // Tons de azul
       'azul marinho', 'azul royal', 'azul celeste', 'azul bebê',
+      // Tons de verde
       'verde musgo', 'verde militar', 'verde água', 'verde limão',
+      // Tons de rosa
       'rosa bebê', 'rosa pink', 'rosa claro', 'rosa escuro',
+      // Tons de vermelho/marrom
       'vermelho escuro', 'vermelho vivo', 'bordô', 'marsala',
-      'off white', 'off-white', 'cru', 'natural', 'black', 'white'
+      // Neutros e outros
+      'off white', 'off-white', 'cru', 'natural', 'black', 'white',
+      'caramelo', 'chocolate', 'café', 'caqui', 'khaki', 'mostarda'
     ];
 
     for (const cor of coresConhecidas) {
