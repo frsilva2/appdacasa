@@ -110,25 +110,50 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
   };
 
   const handleOCRComplete = (dadosOCR) => {
-    // Preencher campos com dados do OCR
-    const info = dadosOCR.ocr.informacoesExtraidas;
+    console.log('=== OCR COMPLETE ===');
+    console.log('Dados OCR recebidos:', dadosOCR);
 
-    if (info.metragem) {
-      setQuantidadeContada(info.metragem);
+    // Verificar estrutura dos dados - pode vir como dadosOCR.data ou dadosOCR diretamente
+    const ocrData = dadosOCR.data?.ocr || dadosOCR.ocr;
+
+    if (!ocrData) {
+      console.error('Estrutura OCR inválida:', dadosOCR);
+      alert('Erro: Dados do OCR não encontrados');
+      return;
     }
 
+    console.log('OCR Data:', ocrData);
+    console.log('Informações extraídas:', ocrData.informacoesExtraidas);
+    console.log('Texto completo:', ocrData.textoCompleto);
+
+    const info = ocrData.informacoesExtraidas || {};
+
+    // Preencher quantidade/metragem
+    if (info.metragem) {
+      console.log('Preenchendo metragem:', info.metragem);
+      setQuantidadeContada(info.metragem);
+    } else if (info.quantidade) {
+      console.log('Preenchendo quantidade:', info.quantidade);
+      setQuantidadeContada(info.quantidade.toString());
+    }
+
+    // Preencher lote/código
     if (info.codigo) {
+      console.log('Preenchendo código/lote:', info.codigo);
       setLote(info.codigo);
     }
 
-    // Adicionar texto completo às observações
-    const textoOCR = dadosOCR.ocr.textoCompleto.substring(0, 200); // Limitar tamanho
-    setObservacoes(prev => {
-      const novoTexto = `[OCR] ${textoOCR}`;
-      return prev ? `${prev}\n\n${novoTexto}` : novoTexto;
-    });
+    // Adicionar texto completo às observações para referência
+    const textoOCR = ocrData.textoCompleto || '';
+    if (textoOCR) {
+      const textoLimpo = textoOCR.substring(0, 500).trim(); // Aumentar limite
+      setObservacoes(prev => {
+        const novoTexto = `[OCR - Confiança: ${ocrData.confiancaMedia?.toFixed(1) || 'N/A'}%]\n${textoLimpo}`;
+        return prev ? `${prev}\n\n${novoTexto}` : novoTexto;
+      });
+    }
 
-    // Voltar para modo manual
+    // Voltar para modo manual para seleção de produto/cor
     setModoOCR(false);
   };
 

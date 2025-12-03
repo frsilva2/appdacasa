@@ -206,40 +206,162 @@ function extrairInformacoesEtiqueta(texto) {
     metragem: null,
     fornecedor: null,
     codigo: null,
-    preco: null
+    preco: null,
+    lote: null
   };
 
-  // Padrões comuns em etiquetas de tecidos
+  // Normalizar texto para facilitar extração
+  const textoNormalizado = texto.toLowerCase();
+  const textoOriginal = texto;
+
+  console.log('=== EXTRAINDO INFORMAÇÕES DA ETIQUETA ===');
+  console.log('Texto original:', textoOriginal);
+
+  // Padrões mais flexíveis para etiquetas de tecidos
   const padroes = {
-    metragem: /(\d+[\.,]?\d*)\s*(m|metros?)/gi,
-    quantidade: /qtd?:?\s*(\d+)/gi,
-    preco: /r\$?\s*(\d+[\.,]?\d{2})/gi,
-    codigo: /c[óo]d(?:igo)?:?\s*(\w+)/gi
+    // Metragem: "100m", "100 m", "100 metros", "100,5m", "100.5 m", "MT: 100", "METRAGEM: 100"
+    metragem: [
+      /(?:metragem|mt|mts|metros?)[\s:]*(\d+[\.,]?\d*)/gi,
+      /(\d+[\.,]?\d*)\s*(?:m|metros?|mts)\b/gi,
+      /(\d{2,4}[\.,]?\d{0,2})\s*m\b/gi
+    ],
+    // Quantidade: "Qtd: 5", "QTD 10", "quantidade: 3", "pcs: 2", "peças: 4"
+    quantidade: [
+      /(?:qtd|qt|quantidade|pcs|pe[cç]as?)[\s:]*(\d+)/gi,
+      /(\d+)\s*(?:un|und|unid|pcs|pe[cç]as?)/gi
+    ],
+    // Preço: "R$ 45,90", "R$100.00", "45,90", "VALOR: 100,00"
+    preco: [
+      /r\$\s*(\d+[\.,]\d{2})/gi,
+      /(?:valor|pre[cç]o|vlr)[\s:]*r?\$?\s*(\d+[\.,]\d{2})/gi,
+      /(\d+[\.,]\d{2})\s*(?:r\$|reais)/gi
+    ],
+    // Código: "Cód: ABC123", "codigo: XYZ", "REF: 12345", "SKU: ABC-123"
+    codigo: [
+      /(?:c[oó]d(?:igo)?|ref(?:er[eê]ncia)?|sku|art(?:igo)?)[\s.:]*([A-Z0-9\-]+)/gi,
+      /\b([A-Z]{2,4}[\-]?\d{3,6})\b/g
+    ],
+    // Lote: "LOTE: 12345", "LT: ABC", "BATCH: XYZ"
+    lote: [
+      /(?:lote|lt|batch)[\s.:]*([A-Z0-9\-]+)/gi
+    ],
+    // Cor: "COR: AZUL", "cor azul", "BRANCO", procurar cores comuns
+    cor: [
+      /(?:cor)[\s:]+([A-ZÀ-Ú\s]+?)(?:\s|$|\n|,)/gi
+    ],
+    // Produto/Tecido: "TECIDO: ...", "PRODUTO: ...", "DESC: ..."
+    produto: [
+      /(?:tecido|produto|desc(?:ri[çc][aã]o)?|material)[\s:]+([A-ZÀ-Ú0-9\s]+?)(?:\n|$)/gi
+    ]
   };
+
+  // Cores comuns para tentar identificar no texto
+  const coresConhecidas = [
+    'branco', 'preto', 'azul', 'vermelho', 'verde', 'amarelo', 'rosa',
+    'roxo', 'laranja', 'marrom', 'cinza', 'bege', 'nude', 'vinho',
+    'azul marinho', 'azul royal', 'azul celeste', 'azul bebê',
+    'verde musgo', 'verde militar', 'verde água', 'verde limão',
+    'rosa bebê', 'rosa pink', 'rosa claro', 'rosa escuro',
+    'vermelho escuro', 'vermelho vivo', 'bordô', 'marsala',
+    'off white', 'off-white', 'cru', 'natural', 'caramelo',
+    'terracota', 'salmão', 'coral', 'lilás', 'lavanda'
+  ];
 
   // Tentar extrair metragem
-  const matchMetragem = padroes.metragem.exec(texto);
-  if (matchMetragem) {
-    info.metragem = matchMetragem[1].replace(',', '.');
+  for (const padrao of padroes.metragem) {
+    const match = padrao.exec(texto);
+    if (match) {
+      info.metragem = match[1].replace(',', '.');
+      console.log('Metragem encontrada:', info.metragem);
+      break;
+    }
+    padrao.lastIndex = 0; // Reset para próximo uso
   }
 
   // Tentar extrair quantidade
-  const matchQuantidade = padroes.quantidade.exec(texto);
-  if (matchQuantidade) {
-    info.quantidade = parseInt(matchQuantidade[1]);
+  for (const padrao of padroes.quantidade) {
+    const match = padrao.exec(texto);
+    if (match) {
+      info.quantidade = parseInt(match[1]);
+      console.log('Quantidade encontrada:', info.quantidade);
+      break;
+    }
+    padrao.lastIndex = 0;
   }
 
   // Tentar extrair preço
-  const matchPreco = padroes.preco.exec(texto);
-  if (matchPreco) {
-    info.preco = matchPreco[1].replace(',', '.');
+  for (const padrao of padroes.preco) {
+    const match = padrao.exec(texto);
+    if (match) {
+      info.preco = match[1].replace(',', '.');
+      console.log('Preço encontrado:', info.preco);
+      break;
+    }
+    padrao.lastIndex = 0;
   }
 
   // Tentar extrair código
-  const matchCodigo = padroes.codigo.exec(texto);
-  if (matchCodigo) {
-    info.codigo = matchCodigo[1];
+  for (const padrao of padroes.codigo) {
+    const match = padrao.exec(texto);
+    if (match) {
+      info.codigo = match[1].toUpperCase();
+      console.log('Código encontrado:', info.codigo);
+      break;
+    }
+    padrao.lastIndex = 0;
   }
+
+  // Tentar extrair lote
+  for (const padrao of padroes.lote) {
+    const match = padrao.exec(texto);
+    if (match) {
+      info.lote = match[1].toUpperCase();
+      console.log('Lote encontrado:', info.lote);
+      break;
+    }
+    padrao.lastIndex = 0;
+  }
+
+  // Tentar identificar cor no texto
+  for (const cor of coresConhecidas) {
+    if (textoNormalizado.includes(cor)) {
+      info.cor = cor.charAt(0).toUpperCase() + cor.slice(1);
+      console.log('Cor identificada:', info.cor);
+      break;
+    }
+  }
+
+  // Tentar extrair cor por padrão
+  if (!info.cor) {
+    for (const padrao of padroes.cor) {
+      const match = padrao.exec(texto);
+      if (match) {
+        info.cor = match[1].trim();
+        console.log('Cor extraída por padrão:', info.cor);
+        break;
+      }
+      padrao.lastIndex = 0;
+    }
+  }
+
+  // Tentar extrair produto
+  for (const padrao of padroes.produto) {
+    const match = padrao.exec(texto);
+    if (match) {
+      info.produto = match[1].trim();
+      console.log('Produto encontrado:', info.produto);
+      break;
+    }
+    padrao.lastIndex = 0;
+  }
+
+  // Se não encontrou lote mas encontrou código, usar como lote
+  if (!info.lote && info.codigo) {
+    info.lote = info.codigo;
+  }
+
+  console.log('=== INFORMAÇÕES EXTRAÍDAS ===');
+  console.log(info);
 
   return info;
 }
