@@ -197,17 +197,22 @@ export const processarOCR = async (req, res) => {
 
 /**
  * Função auxiliar para extrair informações estruturadas da etiqueta
+ * Otimizado para etiquetas EUROTEXTIL e formatos similares
  */
 function extrairInformacoesEtiqueta(texto) {
   const info = {
     produto: null,
     cor: null,
+    codigoCor: null,
     quantidade: null,
     metragem: null,
     fornecedor: null,
     codigo: null,
     preco: null,
-    lote: null
+    lote: null,
+    po: null,
+    seq: null,
+    desenho: null
   };
 
   // Normalizar texto para facilitar extração
@@ -217,147 +222,173 @@ function extrairInformacoesEtiqueta(texto) {
   console.log('=== EXTRAINDO INFORMAÇÕES DA ETIQUETA ===');
   console.log('Texto original:', textoOriginal);
 
-  // Padrões mais flexíveis para etiquetas de tecidos
-  const padroes = {
-    // Metragem: "100m", "100 m", "100 metros", "100,5m", "100.5 m", "MT: 100", "METRAGEM: 100"
-    metragem: [
-      /(?:metragem|mt|mts|metros?)[\s:]*(\d+[\.,]?\d*)/gi,
-      /(\d+[\.,]?\d*)\s*(?:m|metros?|mts)\b/gi,
-      /(\d{2,4}[\.,]?\d{0,2})\s*m\b/gi
-    ],
-    // Quantidade: "Qtd: 5", "QTD 10", "quantidade: 3", "pcs: 2", "peças: 4"
-    quantidade: [
-      /(?:qtd|qt|quantidade|pcs|pe[cç]as?)[\s:]*(\d+)/gi,
-      /(\d+)\s*(?:un|und|unid|pcs|pe[cç]as?)/gi
-    ],
-    // Preço: "R$ 45,90", "R$100.00", "45,90", "VALOR: 100,00"
-    preco: [
-      /r\$\s*(\d+[\.,]\d{2})/gi,
-      /(?:valor|pre[cç]o|vlr)[\s:]*r?\$?\s*(\d+[\.,]\d{2})/gi,
-      /(\d+[\.,]\d{2})\s*(?:r\$|reais)/gi
-    ],
-    // Código: "Cód: ABC123", "codigo: XYZ", "REF: 12345", "SKU: ABC-123"
-    codigo: [
-      /(?:c[oó]d(?:igo)?|ref(?:er[eê]ncia)?|sku|art(?:igo)?)[\s.:]*([A-Z0-9\-]+)/gi,
-      /\b([A-Z]{2,4}[\-]?\d{3,6})\b/g
-    ],
-    // Lote: "LOTE: 12345", "LT: ABC", "BATCH: XYZ"
-    lote: [
-      /(?:lote|lt|batch)[\s.:]*([A-Z0-9\-]+)/gi
-    ],
-    // Cor: "COR: AZUL", "cor azul", "BRANCO", procurar cores comuns
-    cor: [
-      /(?:cor)[\s:]+([A-ZÀ-Ú\s]+?)(?:\s|$|\n|,)/gi
-    ],
-    // Produto/Tecido: "TECIDO: ...", "PRODUTO: ...", "DESC: ..."
-    produto: [
-      /(?:tecido|produto|desc(?:ri[çc][aã]o)?|material)[\s:]+([A-ZÀ-Ú0-9\s]+?)(?:\n|$)/gi
-    ]
-  };
+  // ============================================
+  // PADRÕES ESPECÍFICOS PARA EUROTEXTIL
+  // ============================================
 
-  // Cores comuns para tentar identificar no texto
-  const coresConhecidas = [
-    'branco', 'preto', 'azul', 'vermelho', 'verde', 'amarelo', 'rosa',
-    'roxo', 'laranja', 'marrom', 'cinza', 'bege', 'nude', 'vinho',
-    'azul marinho', 'azul royal', 'azul celeste', 'azul bebê',
-    'verde musgo', 'verde militar', 'verde água', 'verde limão',
-    'rosa bebê', 'rosa pink', 'rosa claro', 'rosa escuro',
-    'vermelho escuro', 'vermelho vivo', 'bordô', 'marsala',
-    'off white', 'off-white', 'cru', 'natural', 'caramelo',
-    'terracota', 'salmão', 'coral', 'lilás', 'lavanda'
-  ];
-
-  // Tentar extrair metragem
-  for (const padrao of padroes.metragem) {
-    const match = padrao.exec(texto);
-    if (match) {
-      info.metragem = match[1].replace(',', '.');
-      console.log('Metragem encontrada:', info.metragem);
-      break;
-    }
-    padrao.lastIndex = 0; // Reset para próximo uso
+  // METRAGEM: "METRAGEM: 66,00 MT" ou "MEDIDA: 59,00 MT" ou "50,00 MT"
+  const padraoMetragemEurotextil = /(?:metragem|medida)[\s:]*(\d+[\.,]\d{2})\s*(?:mt|m)/gi;
+  let matchMetragem = padraoMetragemEurotextil.exec(texto);
+  if (matchMetragem) {
+    info.metragem = matchMetragem[1].replace(',', '.');
+    console.log('Metragem EUROTEXTIL encontrada:', info.metragem);
   }
 
-  // Tentar extrair quantidade
-  for (const padrao of padroes.quantidade) {
-    const match = padrao.exec(texto);
-    if (match) {
-      info.quantidade = parseInt(match[1]);
-      console.log('Quantidade encontrada:', info.quantidade);
-      break;
-    }
-    padrao.lastIndex = 0;
+  // COR: "COR: #00901 PRATA" ou "COR: #460 - RED" ou "COR: #814 - CAPUCCINO"
+  const padraoCorEurotextil = /cor[\s:]*#(\d+)\s*[-\s]*([A-ZÀ-Úa-zà-ú]+)/gi;
+  let matchCor = padraoCorEurotextil.exec(texto);
+  if (matchCor) {
+    info.codigoCor = matchCor[1];
+    info.cor = matchCor[2].trim().toUpperCase();
+    console.log('Cor EUROTEXTIL encontrada:', info.codigoCor, '-', info.cor);
   }
 
-  // Tentar extrair preço
-  for (const padrao of padroes.preco) {
-    const match = padrao.exec(texto);
-    if (match) {
-      info.preco = match[1].replace(',', '.');
-      console.log('Preço encontrado:', info.preco);
-      break;
+  // PRODUTO: "PRODUTO: OXFORD TINTO 1,50L 100% POLYESTER" ou "334103 - OXFORD TINTO..."
+  const padraoProdutoEurotextil = /(?:produto[\s:]*|(\d{6})\s*[-–]\s*)([A-ZÀ-Ú0-9\s\.,/%]+?)(?=\n|cor:|metragem|medida|po:|$)/gi;
+  let matchProduto = padraoProdutoEurotextil.exec(texto);
+  if (matchProduto) {
+    if (matchProduto[1]) {
+      info.codigo = matchProduto[1]; // Código do produto (334103)
     }
-    padrao.lastIndex = 0;
+    info.produto = matchProduto[2].trim().replace(/\s+/g, ' ');
+    console.log('Produto EUROTEXTIL encontrado:', info.codigo, '-', info.produto);
   }
 
-  // Tentar extrair código
-  for (const padrao of padroes.codigo) {
-    const match = padrao.exec(texto);
-    if (match) {
-      info.codigo = match[1].toUpperCase();
-      console.log('Código encontrado:', info.codigo);
-      break;
-    }
-    padrao.lastIndex = 0;
+  // PO (Purchase Order): "PO: 242494"
+  const padraoPO = /po[\s:]*(\d+)/gi;
+  let matchPO = padraoPO.exec(texto);
+  if (matchPO) {
+    info.po = matchPO[1];
+    console.log('PO encontrado:', info.po);
   }
 
-  // Tentar extrair lote
-  for (const padrao of padroes.lote) {
-    const match = padrao.exec(texto);
-    if (match) {
-      info.lote = match[1].toUpperCase();
-      console.log('Lote encontrado:', info.lote);
-      break;
-    }
-    padrao.lastIndex = 0;
+  // SEQ (Sequência): "SEQ: 939" ou "SEQ.: 1918"
+  const padraoSEQ = /seq[\s.:]*(\d+)/gi;
+  let matchSEQ = padraoSEQ.exec(texto);
+  if (matchSEQ) {
+    info.seq = matchSEQ[1];
+    console.log('SEQ encontrado:', info.seq);
   }
 
-  // Tentar identificar cor no texto
-  for (const cor of coresConhecidas) {
-    if (textoNormalizado.includes(cor)) {
-      info.cor = cor.charAt(0).toUpperCase() + cor.slice(1);
-      console.log('Cor identificada:', info.cor);
-      break;
+  // DESENHO: "DESENHO: #0SDE" ou "DESENHO: #0"
+  const padraoDesenho = /desenho[\s:]*#?([A-Z0-9]+)/gi;
+  let matchDesenho = padraoDesenho.exec(texto);
+  if (matchDesenho) {
+    info.desenho = matchDesenho[1];
+    console.log('Desenho encontrado:', info.desenho);
+  }
+
+  // Código de barras no formato EUROTEXTIL: "0000000334103.000066000.000SDE901"
+  const padraoCodigoBarras = /(\d{13})\.(\d{9})\.(\d{3})([A-Z0-9]+)/gi;
+  let matchCodigoBarras = padraoCodigoBarras.exec(texto);
+  if (matchCodigoBarras) {
+    // Extrair código do produto dos primeiros dígitos (334103)
+    const codigoCompleto = matchCodigoBarras[1];
+    const codigoProduto = codigoCompleto.replace(/^0+/, '').substring(0, 6);
+    if (!info.codigo && codigoProduto) {
+      info.codigo = codigoProduto;
+      console.log('Código extraído do código de barras:', info.codigo);
     }
   }
 
-  // Tentar extrair cor por padrão
-  if (!info.cor) {
-    for (const padrao of padroes.cor) {
+  // ============================================
+  // PADRÕES GENÉRICOS (FALLBACK)
+  // ============================================
+
+  // Se não encontrou metragem com padrão EUROTEXTIL, tentar padrões genéricos
+  if (!info.metragem) {
+    const padroesMetragemGenericos = [
+      /(\d+[\.,]\d{2})\s*(?:mt|m)\b/gi,
+      /(?:metragem|medida|mt|mts)[\s:]*(\d+[\.,]?\d*)/gi,
+      /(\d+[\.,]?\d*)\s*(?:metros?)\b/gi
+    ];
+
+    for (const padrao of padroesMetragemGenericos) {
       const match = padrao.exec(texto);
       if (match) {
-        info.cor = match[1].trim();
-        console.log('Cor extraída por padrão:', info.cor);
+        info.metragem = match[1].replace(',', '.');
+        console.log('Metragem genérica encontrada:', info.metragem);
         break;
       }
       padrao.lastIndex = 0;
     }
   }
 
-  // Tentar extrair produto
-  for (const padrao of padroes.produto) {
-    const match = padrao.exec(texto);
-    if (match) {
-      info.produto = match[1].trim();
-      console.log('Produto encontrado:', info.produto);
-      break;
+  // Se não encontrou cor, tentar padrões genéricos e cores conhecidas
+  if (!info.cor) {
+    const coresConhecidas = [
+      'branco', 'preto', 'azul', 'vermelho', 'verde', 'amarelo', 'rosa',
+      'roxo', 'laranja', 'marrom', 'cinza', 'bege', 'nude', 'vinho',
+      'prata', 'dourado', 'gold', 'silver', 'red', 'blue', 'green',
+      'amarelo', 'capuccino', 'cappuccino', 'caramelo', 'chocolate',
+      'azul marinho', 'azul royal', 'azul celeste', 'azul bebê',
+      'verde musgo', 'verde militar', 'verde água', 'verde limão',
+      'rosa bebê', 'rosa pink', 'rosa claro', 'rosa escuro',
+      'vermelho escuro', 'vermelho vivo', 'bordô', 'marsala',
+      'off white', 'off-white', 'cru', 'natural', 'black', 'white'
+    ];
+
+    for (const cor of coresConhecidas) {
+      if (textoNormalizado.includes(cor.toLowerCase())) {
+        info.cor = cor.charAt(0).toUpperCase() + cor.slice(1);
+        console.log('Cor identificada por lista:', info.cor);
+        break;
+      }
     }
-    padrao.lastIndex = 0;
   }
 
-  // Se não encontrou lote mas encontrou código, usar como lote
-  if (!info.lote && info.codigo) {
-    info.lote = info.codigo;
+  // Se não encontrou produto, tentar padrões genéricos
+  if (!info.produto) {
+    const padraoProdutoGenerico = /(?:produto|tecido|material|desc)[\s:]+([A-ZÀ-Ú0-9\s\.,/%]+?)(?:\n|$)/gi;
+    const matchProdutoGen = padraoProdutoGenerico.exec(texto);
+    if (matchProdutoGen) {
+      info.produto = matchProdutoGen[1].trim();
+      console.log('Produto genérico encontrado:', info.produto);
+    }
+  }
+
+  // Código genérico: "Cód: ABC123", "REF: 12345"
+  if (!info.codigo) {
+    const padraoCodigoGenerico = /(?:c[oó]d(?:igo)?|ref|sku)[\s.:]*([A-Z0-9\-]+)/gi;
+    const matchCodigoGen = padraoCodigoGenerico.exec(texto);
+    if (matchCodigoGen) {
+      info.codigo = matchCodigoGen[1].toUpperCase();
+      console.log('Código genérico encontrado:', info.codigo);
+    }
+  }
+
+  // Preço: "R$ 45,90"
+  const padraoPreco = /r\$\s*(\d+[\.,]\d{2})/gi;
+  const matchPreco = padraoPreco.exec(texto);
+  if (matchPreco) {
+    info.preco = matchPreco[1].replace(',', '.');
+    console.log('Preço encontrado:', info.preco);
+  }
+
+  // Quantidade: "Qtd: 5"
+  const padraoQtd = /(?:qtd|qt|quantidade)[\s:]*(\d+)/gi;
+  const matchQtd = padraoQtd.exec(texto);
+  if (matchQtd) {
+    info.quantidade = parseInt(matchQtd[1]);
+    console.log('Quantidade encontrada:', info.quantidade);
+  }
+
+  // Lote: "LOTE: 12345"
+  const padraoLote = /(?:lote|lt|batch)[\s.:]*([A-Z0-9\-]+)/gi;
+  const matchLote = padraoLote.exec(texto);
+  if (matchLote) {
+    info.lote = matchLote[1].toUpperCase();
+    console.log('Lote encontrado:', info.lote);
+  }
+
+  // Usar SEQ como lote se não tiver lote
+  if (!info.lote && info.seq) {
+    info.lote = `SEQ-${info.seq}`;
+  }
+
+  // Usar PO + SEQ como código único se disponível
+  if (info.po && info.seq && !info.lote) {
+    info.lote = `${info.po}-${info.seq}`;
   }
 
   console.log('=== INFORMAÇÕES EXTRAÍDAS ===');

@@ -21,6 +21,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
   const [itensAdicionados, setItensAdicionados] = useState(0);
   const [ultimoItemAdicionado, setUltimoItemAdicionado] = useState(null);
   const [mostrarConfirmacao, setMostrarConfirmacao] = useState(false);
+  const [dadosOCRExtraidos, setDadosOCRExtraidos] = useState(null);
 
   useEffect(() => {
     carregarProdutos();
@@ -56,6 +57,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
     setQuantidadeContada('');
     setLote('');
     setObservacoes('');
+    setDadosOCRExtraidos(null);
   };
 
   const handleSubmit = async (e) => {
@@ -124,31 +126,45 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
 
     console.log('OCR Data:', ocrData);
     console.log('Informações extraídas:', ocrData.informacoesExtraidas);
-    console.log('Texto completo:', ocrData.textoCompleto);
 
     const info = ocrData.informacoesExtraidas || {};
 
-    // Preencher quantidade/metragem
+    // Salvar dados extraídos para exibição
+    setDadosOCRExtraidos({
+      produto: info.produto,
+      cor: info.cor,
+      codigoCor: info.codigoCor,
+      metragem: info.metragem,
+      codigo: info.codigo,
+      po: info.po,
+      seq: info.seq,
+      confianca: ocrData.confiancaMedia
+    });
+
+    // Preencher METRAGEM automaticamente
     if (info.metragem) {
       console.log('Preenchendo metragem:', info.metragem);
       setQuantidadeContada(info.metragem);
-    } else if (info.quantidade) {
-      console.log('Preenchendo quantidade:', info.quantidade);
-      setQuantidadeContada(info.quantidade.toString());
     }
 
-    // Preencher lote/código
-    if (info.codigo) {
-      console.log('Preenchendo código/lote:', info.codigo);
+    // Preencher LOTE com SEQ ou PO-SEQ
+    if (info.seq) {
+      const loteFormatado = info.po ? `${info.po}-${info.seq}` : `SEQ-${info.seq}`;
+      console.log('Preenchendo lote:', loteFormatado);
+      setLote(loteFormatado);
+    } else if (info.codigo) {
       setLote(info.codigo);
     }
 
-    // Adicionar texto completo às observações para referência
-    const textoOCR = ocrData.textoCompleto || '';
-    if (textoOCR) {
-      const textoLimpo = textoOCR.substring(0, 500).trim(); // Aumentar limite
+    // Adicionar resumo às observações
+    const resumo = [];
+    if (info.produto) resumo.push(`Produto: ${info.produto}`);
+    if (info.cor) resumo.push(`Cor: ${info.codigoCor ? `#${info.codigoCor} ` : ''}${info.cor}`);
+    if (info.metragem) resumo.push(`Metragem: ${info.metragem} MT`);
+
+    if (resumo.length > 0) {
       setObservacoes(prev => {
-        const novoTexto = `[OCR - Confiança: ${ocrData.confiancaMedia?.toFixed(1) || 'N/A'}%]\n${textoLimpo}`;
+        const novoTexto = `[OCR]\n${resumo.join('\n')}`;
         return prev ? `${prev}\n\n${novoTexto}` : novoTexto;
       });
     }
@@ -230,6 +246,57 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
                 />
               </div>
             ) : null}
+
+            {/* Card de Dados Extraídos do OCR */}
+            {dadosOCRExtraidos && !modoOCR && (
+              <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-green-800 flex items-center gap-2">
+                    <ScanLine size={20} />
+                    Dados Extraídos da Etiqueta
+                  </h3>
+                  <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">
+                    Confiança: {dadosOCRExtraidos.confianca?.toFixed(0) || 'N/A'}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Produto */}
+                  <div className="bg-white rounded p-3 border border-green-200">
+                    <p className="text-xs text-gray-500 mb-1">PRODUTO</p>
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {dadosOCRExtraidos.produto || 'Não identificado'}
+                    </p>
+                    {dadosOCRExtraidos.codigo && (
+                      <p className="text-xs text-gray-500 mt-1">Cód: {dadosOCRExtraidos.codigo}</p>
+                    )}
+                  </div>
+
+                  {/* Cor */}
+                  <div className="bg-white rounded p-3 border border-green-200">
+                    <p className="text-xs text-gray-500 mb-1">COR</p>
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {dadosOCRExtraidos.cor || 'Não identificada'}
+                    </p>
+                    {dadosOCRExtraidos.codigoCor && (
+                      <p className="text-xs text-gray-500 mt-1">#{dadosOCRExtraidos.codigoCor}</p>
+                    )}
+                  </div>
+
+                  {/* Metragem */}
+                  <div className="bg-white rounded p-3 border border-green-200">
+                    <p className="text-xs text-gray-500 mb-1">METRAGEM</p>
+                    <p className="font-semibold text-gray-900 text-lg">
+                      {dadosOCRExtraidos.metragem ? `${dadosOCRExtraidos.metragem} MT` : 'Não identificada'}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-green-700 mt-3">
+                  Confira os dados acima e selecione o produto e cor correspondentes no sistema.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-4">
               {/* Produto com Autocomplete */}
