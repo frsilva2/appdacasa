@@ -115,7 +115,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
     console.log('=== OCR COMPLETE ===');
     console.log('Dados OCR recebidos:', dadosOCR);
 
-    // Verificar estrutura dos dados - pode vir como dadosOCR.data ou dadosOCR diretamente
+    // Verificar estrutura dos dados
     const ocrData = dadosOCR.data?.ocr || dadosOCR.ocr;
 
     if (!ocrData) {
@@ -136,19 +136,22 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
       confianca: ocrData.confiancaMedia
     });
 
-    // Preencher METRAGEM automaticamente
+    // 1. PREENCHER METRAGEM
     if (info.metragem) {
       setQuantidadeContada(info.metragem);
     }
 
-    // Buscar produto no DEPARA se tiver nome do produto
+    // 2. BUSCAR E SELECIONAR PRODUTO AUTOMATICAMENTE
+    let produtoEncontrado = null;
+
     if (info.produto) {
+      const produtoEtiqueta = info.produto.toUpperCase();
+
+      // Primeiro: tentar buscar no DEPARA
       try {
         const response = await api.get('/depara');
         const deparaList = response.data.data || [];
 
-        // Procurar correspondência no DEPARA
-        const produtoEtiqueta = info.produto.toUpperCase();
         const correspondencia = deparaList.find(item =>
           produtoEtiqueta.includes(item.nomeFornecedor?.toUpperCase()) ||
           item.nomeFornecedor?.toUpperCase().includes(produtoEtiqueta.split(' ')[0])
@@ -156,24 +159,69 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
 
         if (correspondencia) {
           console.log('DEPARA encontrado:', correspondencia);
-          // Tentar encontrar o produto no sistema pelo nome do ERP
-          const produtoSistema = produtos.find(p =>
+          produtoEncontrado = produtos.find(p =>
             p.nome.toUpperCase().includes(correspondencia.nomeERP?.toUpperCase()) ||
             correspondencia.nomeERP?.toUpperCase().includes(p.nome.toUpperCase())
           );
-
-          if (produtoSistema) {
-            handleProdutoSelect(produtoSistema);
-            console.log('Produto selecionado automaticamente:', produtoSistema.nome);
-          }
         }
       } catch (error) {
         console.log('Erro ao buscar DEPARA:', error);
       }
+
+      // Segundo: se não achou no DEPARA, buscar por nome similar
+      if (!produtoEncontrado) {
+        // Tentar encontrar produto pelo nome (ex: "OXFORD" na etiqueta → "Oxford Tinto" no sistema)
+        const palavrasChave = produtoEtiqueta.split(' ').filter(p => p.length > 3);
+        produtoEncontrado = produtos.find(p => {
+          const nomeProduto = p.nome.toUpperCase();
+          return palavrasChave.some(palavra => nomeProduto.includes(palavra));
+        });
+      }
+
+      // Selecionar produto encontrado
+      if (produtoEncontrado) {
+        console.log('Produto selecionado automaticamente:', produtoEncontrado.nome);
+        setProduto(produtoEncontrado);
+        setProdutoId(produtoEncontrado.id);
+
+        // 3. BUSCAR E SELECIONAR COR AUTOMATICAMENTE
+        if (info.cor || info.codigoCor) {
+          const corEtiqueta = info.cor?.toUpperCase();
+          const codigoCorEtiqueta = info.codigoCor;
+
+          // Buscar cor pelo nome ou código dentro do produto
+          const corEncontrada = produtoEncontrado.cores?.find(c => {
+            const nomeCor = c.nome?.toUpperCase();
+            const codigoCor = c.codigo;
+
+            // Tentar match por nome
+            if (corEtiqueta && nomeCor) {
+              if (nomeCor.includes(corEtiqueta) || corEtiqueta.includes(nomeCor)) {
+                return true;
+              }
+            }
+
+            // Tentar match por código
+            if (codigoCorEtiqueta && codigoCor) {
+              if (codigoCor.includes(codigoCorEtiqueta) || codigoCorEtiqueta.includes(codigoCor)) {
+                return true;
+              }
+            }
+
+            return false;
+          });
+
+          if (corEncontrada) {
+            console.log('Cor selecionada automaticamente:', corEncontrada.nome);
+            setCor(corEncontrada);
+            setCorId(corEncontrada.id);
+          }
+        }
+      }
     }
 
     // Adicionar dados lidos às observações
-    const obs = `[Etiqueta] ${info.produto || 'Produto não lido'} | ${info.cor ? `#${info.codigoCor} ${info.cor}` : 'Cor não lida'} | ${info.metragem ? `${info.metragem} MT` : 'Metragem não lida'}`;
+    const obs = `[Etiqueta] ${info.produto || 'N/A'} | ${info.cor ? `#${info.codigoCor} ${info.cor}` : 'N/A'} | ${info.metragem ? `${info.metragem} MT` : 'N/A'}`;
     setObservacoes(obs);
 
     // Voltar para modo de confirmação
@@ -256,16 +304,25 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
 
             {/* Card de Dados Lidos da Etiqueta */}
             {dadosOCRExtraidos && !modoOCR && (
-              <div className="mb-6 bg-blue-50 border border-blue-300 rounded-lg p-4">
+              <div className={`mb-6 rounded-lg p-4 border-2 ${produtoId && corId && quantidadeContada ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-blue-800 flex items-center gap-2">
-                    <ScanLine size={20} />
-                    Dados Lidos da Etiqueta
+                  <h3 className={`font-bold flex items-center gap-2 ${produtoId && corId && quantidadeContada ? 'text-green-800' : 'text-yellow-800'}`}>
+                    {produtoId && corId && quantidadeContada ? (
+                      <>
+                        <CheckCircle size={20} />
+                        Pronto para Confirmar
+                      </>
+                    ) : (
+                      <>
+                        <ScanLine size={20} />
+                        Dados da Etiqueta
+                      </>
+                    )}
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setModoOCR(true)}
-                    className="text-xs bg-blue-200 text-blue-800 px-3 py-1 rounded hover:bg-blue-300"
+                    onClick={() => { limparFormulario(); setModoOCR(true); }}
+                    className="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300"
                   >
                     Nova Foto
                   </button>
@@ -273,37 +330,46 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
 
                 <div className="grid grid-cols-3 gap-3">
                   {/* Produto */}
-                  <div className="bg-white rounded p-3 border border-blue-200">
-                    <p className="text-xs text-blue-600 font-medium mb-1">PRODUTO</p>
-                    <p className="font-bold text-gray-900 text-sm leading-tight">
+                  <div className={`rounded p-3 border ${produto ? 'bg-green-100 border-green-300' : 'bg-white border-yellow-300'}`}>
+                    <p className="text-xs text-gray-600 font-medium mb-1">PRODUTO (etiqueta)</p>
+                    <p className="font-bold text-gray-900 text-xs leading-tight">
                       {dadosOCRExtraidos.produto || 'NÃO LIDO'}
                     </p>
+                    {produto && (
+                      <p className="text-xs text-green-700 mt-1 font-medium">→ {produto.nome}</p>
+                    )}
                   </div>
 
                   {/* Cor */}
-                  <div className="bg-white rounded p-3 border border-blue-200">
-                    <p className="text-xs text-blue-600 font-medium mb-1">COR</p>
-                    <p className="font-bold text-gray-900 text-sm">
-                      {dadosOCRExtraidos.cor || 'NÃO LIDA'}
+                  <div className={`rounded p-3 border ${cor ? 'bg-green-100 border-green-300' : 'bg-white border-yellow-300'}`}>
+                    <p className="text-xs text-gray-600 font-medium mb-1">COR (etiqueta)</p>
+                    <p className="font-bold text-gray-900 text-xs">
+                      {dadosOCRExtraidos.cor ? `#${dadosOCRExtraidos.codigoCor} ${dadosOCRExtraidos.cor}` : 'NÃO LIDA'}
                     </p>
-                    {dadosOCRExtraidos.codigoCor && (
-                      <p className="text-xs text-gray-500">#{dadosOCRExtraidos.codigoCor}</p>
+                    {cor && (
+                      <p className="text-xs text-green-700 mt-1 font-medium">→ {cor.nome}</p>
                     )}
                   </div>
 
                   {/* Metragem */}
-                  <div className="bg-white rounded p-3 border border-blue-200">
-                    <p className="text-xs text-blue-600 font-medium mb-1">METRAGEM</p>
+                  <div className={`rounded p-3 border ${quantidadeContada ? 'bg-green-100 border-green-300' : 'bg-white border-yellow-300'}`}>
+                    <p className="text-xs text-gray-600 font-medium mb-1">METRAGEM</p>
                     <p className="font-bold text-gray-900 text-lg">
-                      {dadosOCRExtraidos.metragem ? `${dadosOCRExtraidos.metragem}` : 'NÃO LIDA'}
+                      {quantidadeContada || dadosOCRExtraidos.metragem || 'NÃO LIDA'}
                     </p>
-                    {dadosOCRExtraidos.metragem && <p className="text-xs text-gray-500">metros</p>}
+                    <p className="text-xs text-gray-500">metros</p>
                   </div>
                 </div>
 
-                <p className="text-xs text-blue-700 mt-3 font-medium">
-                  Selecione o produto e cor correspondentes no sistema para confirmar o lançamento.
-                </p>
+                {produtoId && corId && quantidadeContada ? (
+                  <p className="text-xs text-green-700 mt-3 font-bold text-center">
+                    Tudo preenchido! Clique em "Confirmar e Próximo" para lançar.
+                  </p>
+                ) : (
+                  <p className="text-xs text-yellow-700 mt-3 font-medium">
+                    Complete os campos em amarelo abaixo.
+                  </p>
+                )}
               </div>
             )}
 
