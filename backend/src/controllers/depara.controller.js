@@ -17,7 +17,7 @@ let cacheExcel = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
-const lerExcel = async () => {
+export const lerExcel = async () => {
   // Verificar cache
   if (cacheExcel && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
     return cacheExcel;

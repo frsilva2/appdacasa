@@ -1,87 +1,79 @@
-import { useState, useEffect } from 'react';
-import { X, Camera, ScanLine, CheckCircle, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { X, Camera, ScanLine, CheckCircle, ArrowRight, Edit3 } from 'lucide-react';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import UploadEtiqueta from '../../components/etiquetas/UploadEtiqueta';
-import ProductAutocomplete from '../../components/ProductAutocomplete';
-import ColorSelector from '../../components/ColorSelector';
 
+/**
+ * Modal para adicionar itens ao inventário
+ * Fluxo simplificado:
+ * 1. OCR lê etiqueta (PRODUTO, COR, METRAGEM)
+ * 2. Busca correspondência no DEPARA
+ * 3. Se encontrar: usa nome do sistema (nomeERP)
+ * 4. Se não encontrar: usa texto lido da etiqueta
+ * 5. Cor é texto simples (não seletor)
+ * 6. Operador apenas confirma os dados
+ */
 const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
-  const [produtos, setProdutos] = useState([]);
-  const [produtoId, setProdutoId] = useState('');
-  const [corId, setCorId] = useState('');
-  const [produto, setProduto] = useState(null);
-  const [cor, setCor] = useState(null);
+
+  // Campos de texto simples
+  const [produtoNome, setProdutoNome] = useState('');
+  const [corNome, setCorNome] = useState('');
+  const [codigoCor, setCodigoCor] = useState('');
   const [quantidadeContada, setQuantidadeContada] = useState('');
-  const [lote, setLote] = useState('');
   const [observacoes, setObservacoes] = useState('');
-  const [modoOCR, setModoOCR] = useState(true); // Começa em modo OCR
-  const [modoContinuo, setModoContinuo] = useState(true); // Modo contínuo ativado por padrão
+
+  // Controle de fluxo
+  const [modoOCR, setModoOCR] = useState(true);
+  const [modoContinuo, setModoContinuo] = useState(true);
   const [itensAdicionados, setItensAdicionados] = useState(0);
   const [ultimoItemAdicionado, setUltimoItemAdicionado] = useState(null);
   const [mostrarConfirmacao, setMostrarConfirmacao] = useState(false);
 
-  useEffect(() => {
-    carregarProdutos();
-  }, []);
-
-  const carregarProdutos = async () => {
-    try {
-      const response = await api.get('/produtos');
-      setProdutos(response.data.data);
-    } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
-      alert('Erro ao carregar produtos');
-    }
-  };
-
-  const handleProdutoSelect = (produtoSelecionado) => {
-    setProduto(produtoSelecionado);
-    setProdutoId(produtoSelecionado?.id || '');
-    setCor(null);
-    setCorId('');
-  };
-
-  const handleCorSelect = (corSelecionada) => {
-    setCor(corSelecionada);
-    setCorId(corSelecionada.id);
-  };
+  // Dados originais lidos pela OCR (para exibição)
+  const [dadosOCRExtraidos, setDadosOCRExtraidos] = useState(null);
+  // Indica se o produto foi encontrado no DEPARA
+  const [produtoNoDEPARA, setProdutoNoDEPARA] = useState(false);
 
   const limparFormulario = () => {
-    setProdutoId('');
-    setCorId('');
-    setProduto(null);
-    setCor(null);
+    setProdutoNome('');
+    setCorNome('');
+    setCodigoCor('');
     setQuantidadeContada('');
-    setLote('');
     setObservacoes('');
+    setDadosOCRExtraidos(null);
+    setProdutoNoDEPARA(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!produtoId || !corId || !quantidadeContada) {
-      alert('Preencha produto, cor e quantidade');
+    // Validação simples
+    if (!produtoNome.trim() || !quantidadeContada) {
+      alert('Preencha pelo menos o nome do produto e a quantidade');
       return;
     }
 
     try {
       setLoading(true);
 
+      // Enviar dados como texto para o backend
       await api.post(`/inventario/${inventario.id}/items`, {
-        produtoId,
-        corId,
+        produtoNome: produtoNome.trim(),
+        corNome: corNome.trim() || null,
+        codigoCor: codigoCor.trim() || null,
         quantidadeContada: parseFloat(quantidadeContada),
-        lote: lote || null,
-        observacoes: observacoes || null,
+        observacoes: observacoes.trim() || null,
+        fonteOCR: dadosOCRExtraidos ? true : false,
+        produtoEncontradoDEPARA: produtoNoDEPARA,
       });
 
       // Incrementar contador
       setItensAdicionados(prev => prev + 1);
       setUltimoItemAdicionado({
-        produto: produto.nome,
-        cor: cor.nome,
+        produto: produtoNome,
+        cor: corNome ? `#${codigoCor} ${corNome}` : 'Sem cor',
         quantidade: quantidadeContada,
       });
 
@@ -109,26 +101,92 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
     }
   };
 
-  const handleOCRComplete = (dadosOCR) => {
-    // Preencher campos com dados do OCR
-    const info = dadosOCR.ocr.informacoesExtraidas;
+  const handleOCRComplete = async (dadosOCR) => {
+    console.log('=== OCR COMPLETE ===');
+    console.log('Dados OCR recebidos:', dadosOCR);
 
+    // Verificar estrutura dos dados
+    const ocrData = dadosOCR.data?.ocr || dadosOCR.ocr;
+
+    if (!ocrData) {
+      console.error('Estrutura OCR inválida:', dadosOCR);
+      alert('Erro: Dados do OCR não encontrados');
+      return;
+    }
+
+    const info = ocrData.informacoesExtraidas || {};
+    console.log('Informações extraídas:', info);
+
+    // Salvar dados originais da etiqueta para exibição
+    setDadosOCRExtraidos({
+      produto: info.produto,
+      cor: info.cor,
+      codigoCor: info.codigoCor,
+      metragem: info.metragem,
+      confianca: ocrData.confiancaMedia
+    });
+
+    // 1. PREENCHER METRAGEM (sempre usa o valor lido)
     if (info.metragem) {
       setQuantidadeContada(info.metragem);
     }
 
-    if (info.codigo) {
-      setLote(info.codigo);
+    // 2. PREENCHER COR (sempre usa o texto lido)
+    if (info.cor) {
+      setCorNome(info.cor);
+    }
+    if (info.codigoCor) {
+      setCodigoCor(info.codigoCor);
     }
 
-    // Adicionar texto completo às observações
-    const textoOCR = dadosOCR.ocr.textoCompleto.substring(0, 200); // Limitar tamanho
-    setObservacoes(prev => {
-      const novoTexto = `[OCR] ${textoOCR}`;
-      return prev ? `${prev}\n\n${novoTexto}` : novoTexto;
-    });
+    // 3. BUSCAR PRODUTO NO DEPARA
+    // Lógica simples:
+    // - Procurar nome da etiqueta na Coluna A (nomeFornecedor)
+    // - Se encontrar: usar Coluna B (nomeERP)
+    // - Se não encontrar: usar nome da etiqueta
+    let nomeParaUsar = info.produto || '';
+    let encontradoNoDEPARA = false;
 
-    // Voltar para modo manual
+    if (info.produto) {
+      const produtoEtiqueta = info.produto.toUpperCase().trim();
+      console.log('Buscando no DEPARA:', produtoEtiqueta);
+
+      try {
+        const response = await api.get('/depara');
+        const deparaList = response.data.data || [];
+        console.log(`DEPARA carregado: ${deparaList.length} registros`);
+
+        // Procurar nome da etiqueta na Coluna A (nomeFornecedor)
+        const correspondencia = deparaList.find(item => {
+          const nomeFornecedor = (item.nomeFornecedor || '').toUpperCase().trim();
+          return nomeFornecedor === produtoEtiqueta;
+        });
+
+        if (correspondencia && correspondencia.nomeERP) {
+          // Encontrou na Coluna A → usar Coluna B
+          console.log('✅ DEPARA encontrado:', correspondencia.nomeFornecedor, '->', correspondencia.nomeERP);
+          nomeParaUsar = correspondencia.nomeERP;
+          encontradoNoDEPARA = true;
+        } else {
+          // Não encontrou → usar nome da etiqueta
+          console.log('❌ DEPARA não encontrado, usando nome da etiqueta:', info.produto);
+          nomeParaUsar = info.produto;
+        }
+      } catch (error) {
+        console.log('Erro ao buscar DEPARA:', error);
+        nomeParaUsar = info.produto;
+      }
+    }
+
+    // Preencher nome do produto
+    setProdutoNome(nomeParaUsar);
+    setProdutoNoDEPARA(encontradoNoDEPARA);
+
+    // Adicionar dados lidos às observações para referência
+    const obs = `[Etiqueta] ${info.produto || 'N/A'} | ${info.cor ? `#${info.codigoCor} ${info.cor}` : 'N/A'} | ${info.metragem ? `${info.metragem} MT` : 'N/A'}`;
+    setObservacoes(obs);
+
+    // Sair do modo OCR e mostrar formulário para confirmação
     setModoOCR(false);
   };
 
@@ -141,6 +199,9 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
       onClose();
     }
   };
+
+  // Verificar se todos os campos obrigatórios estão preenchidos
+  const camposPreenchidos = produtoNome.trim() && quantidadeContada;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -193,8 +254,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
                   <ol className="text-sm text-gray-700 space-y-1 ml-6 list-decimal">
                     <li>📸 Tire foto da etiqueta</li>
                     <li>⚙️ Aguarde o OCR processar</li>
-                    <li>✏️ Confirme/ajuste os dados</li>
-                    <li>✅ Clique "Confirmar e Próximo"</li>
+                    <li>✅ Confirme os dados preenchidos</li>
                     <li>🔄 Repita para próxima etiqueta</li>
                   </ol>
                 </div>
@@ -206,85 +266,173 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
               </div>
             ) : null}
 
-            <div className="space-y-4">
-              {/* Produto com Autocomplete */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Produto *
-                </label>
-                <ProductAutocomplete
-                  produtos={produtos}
-                  selectedProduct={produto}
-                  onSelect={handleProdutoSelect}
-                  placeholder="Buscar produto por nome ou código..."
-                />
-              </div>
+            {/* Card de Dados Lidos da Etiqueta */}
+            {dadosOCRExtraidos && !modoOCR && (
+              <div className={`mb-6 rounded-lg p-4 border-2 ${camposPreenchidos ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold flex items-center gap-2 ${camposPreenchidos ? 'text-green-800' : 'text-yellow-800'}`}>
+                    {camposPreenchidos ? (
+                      <>
+                        <CheckCircle size={20} />
+                        Pronto para Confirmar
+                      </>
+                    ) : (
+                      <>
+                        <ScanLine size={20} />
+                        Dados da Etiqueta
+                      </>
+                    )}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => { limparFormulario(); setModoOCR(true); }}
+                    className="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300"
+                  >
+                    Nova Foto
+                  </button>
+                </div>
 
-              {/* Cor com Seletor Visual */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cor * {cor && `- ${cor.nome}`}
-                </label>
-                {produto ? (
-                  <ColorSelector
-                    cores={produto.cores}
-                    selectedCorId={corId}
-                    onSelect={handleCorSelect}
-                    showEstoque={false}
-                  />
-                ) : (
-                  <div className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded border border-gray-200">
-                    Selecione um produto primeiro
+                {/* Dados originais da etiqueta */}
+                <div className="bg-gray-100 rounded p-3 mb-3">
+                  <p className="text-xs text-gray-500 font-medium mb-1">LIDO NA ETIQUETA:</p>
+                  <p className="text-sm text-gray-700">
+                    <strong>Produto:</strong> {dadosOCRExtraidos.produto || 'N/A'}
+                    {produtoNoDEPARA && <span className="text-green-600 ml-2">(DEPARA ✓)</span>}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <strong>Cor:</strong> {dadosOCRExtraidos.cor ? `#${dadosOCRExtraidos.codigoCor} ${dadosOCRExtraidos.cor}` : 'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <strong>Metragem:</strong> {dadosOCRExtraidos.metragem ? `${dadosOCRExtraidos.metragem} MT` : 'N/A'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Produto */}
+                  <div className={`rounded p-3 border ${produtoNome ? 'bg-green-100 border-green-300' : 'bg-white border-yellow-300'}`}>
+                    <p className="text-xs text-gray-600 font-medium mb-1">PRODUTO</p>
+                    <p className="font-bold text-gray-900 text-sm leading-tight">
+                      {produtoNome || 'NÃO PREENCHIDO'}
+                    </p>
+                    {produtoNoDEPARA && (
+                      <p className="text-xs text-green-600 mt-1">Nome do sistema</p>
+                    )}
                   </div>
+
+                  {/* Cor */}
+                  <div className={`rounded p-3 border ${corNome ? 'bg-green-100 border-green-300' : 'bg-white border-gray-200'}`}>
+                    <p className="text-xs text-gray-600 font-medium mb-1">COR</p>
+                    <p className="font-bold text-gray-900 text-sm">
+                      {corNome ? `#${codigoCor} ${corNome}` : 'N/A'}
+                    </p>
+                  </div>
+
+                  {/* Metragem */}
+                  <div className={`rounded p-3 border ${quantidadeContada ? 'bg-green-100 border-green-300' : 'bg-white border-yellow-300'}`}>
+                    <p className="text-xs text-gray-600 font-medium mb-1">METRAGEM</p>
+                    <p className="font-bold text-gray-900 text-lg">
+                      {quantidadeContada || 'N/A'}
+                    </p>
+                    <p className="text-xs text-gray-500">metros</p>
+                  </div>
+                </div>
+
+                {camposPreenchidos ? (
+                  <p className="text-xs text-green-700 mt-3 font-bold text-center">
+                    ✓ Tudo preenchido! Clique em "Confirmar e Próximo" para lançar.
+                  </p>
+                ) : (
+                  <p className="text-xs text-yellow-700 mt-3 font-medium">
+                    Complete os campos obrigatórios abaixo.
+                  </p>
                 )}
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-4">
+            {/* Formulário de Edição (campos de texto simples) */}
+            {!modoOCR && (
+              <div className="space-y-4">
+                {/* Produto - Campo de Texto */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <Edit3 size={16} />
+                    Produto *
+                  </label>
+                  <input
+                    type="text"
+                    value={produtoNome}
+                    onChange={(e) => setProdutoNome(e.target.value)}
+                    className="input w-full text-lg font-medium"
+                    placeholder="Nome do produto..."
+                    required
+                  />
+                  {produtoNoDEPARA && (
+                    <p className="text-xs text-green-600 mt-1">✓ Nome encontrado no DEPARA</p>
+                  )}
+                </div>
+
+                {/* Cor - Campos de Texto */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Código Cor
+                    </label>
+                    <input
+                      type="text"
+                      value={codigoCor}
+                      onChange={(e) => setCodigoCor(e.target.value)}
+                      className="input w-full font-mono"
+                      placeholder="#00901"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nome da Cor
+                    </label>
+                    <input
+                      type="text"
+                      value={corNome}
+                      onChange={(e) => setCorNome(e.target.value)}
+                      className="input w-full"
+                      placeholder="PRATA, AZUL, etc..."
+                    />
+                  </div>
+                </div>
+
+                {/* Quantidade */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quantidade Contada (m) *
+                    Quantidade Contada (metros) *
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={quantidadeContada}
                     onChange={(e) => setQuantidadeContada(e.target.value)}
-                    className="input"
+                    className="input w-full text-2xl font-bold text-center"
                     placeholder="0.00"
                     required
                   />
                 </div>
 
+                {/* Observações */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Lote
+                    Observações
                   </label>
-                  <input
-                    type="text"
-                    value={lote}
-                    onChange={(e) => setLote(e.target.value)}
-                    className="input"
-                    placeholder="L123456"
+                  <textarea
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    className="input min-h-[60px] w-full"
+                    placeholder="Observações sobre este item..."
                   />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Observações
-                </label>
-                <textarea
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  className="input min-h-[60px]"
-                  placeholder="Observações sobre este item..."
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-3 p-6 border-t bg-gray-50">
-            {modoContinuo ? (
+            {modoContinuo && !modoOCR ? (
               <>
                 <button
                   type="button"
@@ -293,12 +441,12 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
                   disabled={loading}
                 >
                   <X size={18} />
-                  Finalizar Contagem ({itensAdicionados})
+                  Finalizar ({itensAdicionados})
                 </button>
                 <button
                   type="submit"
                   className="btn-primary flex-1 text-lg py-4"
-                  disabled={loading || !produtoId || !corId || !quantidadeContada}
+                  disabled={loading || !camposPreenchidos}
                 >
                   {loading ? (
                     <LoadingSpinner />
@@ -311,7 +459,7 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
                   )}
                 </button>
               </>
-            ) : (
+            ) : !modoOCR ? (
               <>
                 <button
                   type="button"
@@ -321,11 +469,15 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary flex-1" disabled={loading}>
+                <button
+                  type="submit"
+                  className="btn-primary flex-1"
+                  disabled={loading || !camposPreenchidos}
+                >
                   {loading ? <LoadingSpinner /> : 'Adicionar Item'}
                 </button>
               </>
-            )}
+            ) : null}
           </div>
         </form>
       </div>

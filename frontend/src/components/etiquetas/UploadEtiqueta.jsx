@@ -26,7 +26,7 @@ const UploadEtiqueta = ({ onOCRComplete, onErro }) => {
     }
   };
 
-  const processarArquivo = (file) => {
+  const processarArquivo = async (file) => {
     // Validar tipo de arquivo
     if (!file.type.startsWith('image/')) {
       setErro('Por favor, selecione um arquivo de imagem válido');
@@ -49,6 +49,35 @@ const UploadEtiqueta = ({ onOCRComplete, onErro }) => {
       setPreview(reader.result);
     };
     reader.readAsDataURL(file);
+
+    // PROCESSAR OCR AUTOMATICAMENTE
+    await processarOCRAutomatico(file);
+  };
+
+  const processarOCRAutomatico = async (file) => {
+    try {
+      setProcessando(true);
+      setErro(null);
+
+      const response = await uploadEProcessarOCR(file);
+
+      setResultado(response.data);
+
+      // Chamar callback com dados extraídos
+      if (onOCRComplete) {
+        onOCRComplete(response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao processar OCR:', error);
+      const mensagemErro = error.response?.data?.message || 'Erro ao processar imagem';
+      setErro(mensagemErro);
+
+      if (onErro) {
+        onErro(mensagemErro);
+      }
+    } finally {
+      setProcessando(false);
+    }
   };
 
   const handleProcessarOCR = async () => {
@@ -140,17 +169,21 @@ const UploadEtiqueta = ({ onOCRComplete, onErro }) => {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Converter para blob e criar arquivo
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       const file = new File([blob], 'captura-camera.jpg', { type: 'image/jpeg' });
 
       // Criar preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
-        setArquivo(file);
-        pararCamera();
       };
       reader.readAsDataURL(file);
+
+      setArquivo(file);
+      pararCamera();
+
+      // PROCESSAR OCR AUTOMATICAMENTE após captura
+      await processarOCRAutomatico(file);
     }, 'image/jpeg', 0.95);
   };
 

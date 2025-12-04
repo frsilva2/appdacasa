@@ -749,10 +749,16 @@ model InventarioItem {
   inventarioId        String
   inventario          Inventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
 
-  produtoId           String
-  produto             Produto  @relation(fields: [produtoId], references: [id])
-  corId               String
-  cor                 Cor      @relation(fields: [corId], references: [id])
+  // Campos de texto (preenchidos pelo OCR)
+  produtoNome         String   @db.VarChar(255) // Nome do produto (da etiqueta ou DEPARA)
+  corNome             String?  @db.VarChar(100) // Nome da cor (da etiqueta)
+  codigoCor           String?  @db.VarChar(20)  // Código da cor (#00901, etc)
+
+  // Relacionamentos opcionais (se encontrar correspondência no sistema)
+  produtoId           String?
+  produto             Produto?  @relation(fields: [produtoId], references: [id])
+  corId               String?
+  cor                 Cor?      @relation(fields: [corId], references: [id])
 
   quantidadeSistema   String   @default("0") @db.VarChar(20) // Quantidade no sistema
   quantidadeContada   String   @default("0") @db.VarChar(20) // Quantidade contada fisicamente
@@ -762,12 +768,17 @@ model InventarioItem {
   observacoes         String?  @db.Text
   ocrData             String?  @db.Text // JSON com dados do OCR
 
+  // Flags de origem dos dados
+  fonteOCR            Boolean  @default(false) // Item veio do OCR?
+  produtoNoDEPARA     Boolean  @default(false) // Produto encontrado no DEPARA?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@index([inventarioId])
   @@index([produtoId])
   @@index([corId])
+  @@index([produtoNome])
 }
 
 enum InventarioTipo {
