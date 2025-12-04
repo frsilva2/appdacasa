@@ -173,16 +173,42 @@ export const processarOCR = async (req, res) => {
     try {
       const dadosExcel = await lerExcel();
       if (dadosExcel && dadosExcel.depara) {
-        // Extrair nomes de produtos da coluna A (nomeFornecedor) e B (nomeERP)
+        // Extrair nomes de produtos usando os cabeçalhos reais da planilha
+        // Coluna A: "NOME PRODUTO FORNECEDOR"
+        // Coluna B: "NOME PRODUTO EMPORIO"
         produtosDEPARA = dadosExcel.depara.map(item => {
-          const keys = Object.keys(item);
-          // Pegar valores das primeiras duas colunas (A e B)
-          return {
-            nomeFornecedor: item[keys[0]] || '',
-            nomeERP: item[keys[1]] || ''
-          };
+          // Tentar com nomes exatos das colunas primeiro
+          let nomeFornecedor = item['NOME PRODUTO FORNECEDOR'] || '';
+          let nomeERP = item['NOME PRODUTO EMPORIO'] || '';
+
+          // Fallback: buscar por colunas que contenham as palavras-chave
+          if (!nomeFornecedor && !nomeERP) {
+            const keys = Object.keys(item);
+            for (const key of keys) {
+              const keyUpper = key.toUpperCase();
+              if (keyUpper.includes('FORNECEDOR') && !nomeFornecedor) {
+                nomeFornecedor = item[key] || '';
+              }
+              if ((keyUpper.includes('EMPORIO') || keyUpper.includes('ERP')) && !nomeERP) {
+                nomeERP = item[key] || '';
+              }
+            }
+          }
+
+          // Fallback final: usar primeiras duas colunas
+          if (!nomeFornecedor && !nomeERP) {
+            const keys = Object.keys(item);
+            nomeFornecedor = item[keys[0]] || '';
+            nomeERP = item[keys[1]] || '';
+          }
+
+          return { nomeFornecedor, nomeERP };
         }).filter(p => p.nomeFornecedor || p.nomeERP);
+
         console.log(`DEPARA carregado: ${produtosDEPARA.length} produtos`);
+        if (produtosDEPARA.length > 0) {
+          console.log('Exemplo:', JSON.stringify(produtosDEPARA[0]));
+        }
       }
     } catch (err) {
       console.log('Aviso: Não foi possível carregar DEPARA:', err.message);
@@ -263,22 +289,8 @@ function extrairInformacoesEtiqueta(texto, produtosDEPARA = []) {
   // 1. EXTRAIR PRODUTO
   // ============================================
 
-  // Construir lista de nomes de produtos do DEPARA (normalizada)
-  const nomesProdutosDEPARA = [];
-  for (const p of produtosDEPARA) {
-    if (p.nomeFornecedor) {
-      nomesProdutosDEPARA.push(p.nomeFornecedor.toUpperCase().trim());
-    }
-    if (p.nomeERP) {
-      nomesProdutosDEPARA.push(p.nomeERP.toUpperCase().trim());
-    }
-  }
-  // Remover duplicatas e ordenar por tamanho (maior primeiro para match mais específico)
-  const produtosUnicos = [...new Set(nomesProdutosDEPARA)]
-    .filter(n => n.length > 3)
-    .sort((a, b) => b.length - a.length);
-
-  console.log(`Nomes de produtos únicos do DEPARA: ${produtosUnicos.length}`);
+  // Primeiro, extrair o texto bruto do produto da etiqueta
+  let produtoEtiqueta = null;
 
   for (const linha of linhas) {
     // Pular linhas de cabeçalho
@@ -288,49 +300,69 @@ function extrairInformacoesEtiqueta(texto, produtosDEPARA = []) {
 
     // Verificar se linha contém PRODU (PRODUTO, PRODUTD, PR0DUTO, etc)
     if (/PR[O0]DU/.test(linha)) {
-      // Extrair tudo após PRODUTO:
       const match = linha.match(/PR[O0]DU[T7D][O0D]?[\s:]+(.+)/);
-      if (match && match[1] && match[1].length > 5) {
-        info.produto = match[1].trim();
-        console.log('PRODUTO encontrado (label):', info.produto);
+      if (match && match[1] && match[1].length > 3) {
+        produtoEtiqueta = match[1].trim();
+        console.log('PRODUTO encontrado na etiqueta:', produtoEtiqueta);
         break;
       }
     }
-
-    // Se linha contém nome de produto do DEPARA
-    for (const nomeProduto of produtosUnicos) {
-      // Extrair palavras-chave do nome (primeiras 2-3 palavras significativas)
-      const palavras = nomeProduto.split(/\s+/).filter(p => p.length > 2);
-      const palavraChave = palavras[0]; // Primeira palavra (ex: OXFORD, TACTEL, etc)
-
-      if (palavraChave && linha.includes(palavraChave)) {
-        // Pegar a linha inteira, removendo prefixo PRODUTO: se existir
-        let prod = linha.replace(/PR[O0]DU[T7D][O0D]?[\s:]*/g, '').trim();
-        if (prod.length > 5) {
-          info.produto = prod;
-          console.log('PRODUTO encontrado (DEPARA):', info.produto);
-          break;
-        }
-      }
-    }
-    if (info.produto) break;
   }
 
-  // Fallback: se não encontrou via DEPARA, tentar com palavras-chave básicas
-  if (!info.produto) {
+  // Fallback: buscar linha que contenha palavras-chave de tecidos
+  if (!produtoEtiqueta) {
     const tecidosBasicos = ['OXFORD', 'TACTEL', 'CREPE', 'CETIM', 'MALHA', 'TRICOLINE',
-                           'VISCOLYCRA', 'LINHO', 'SARJA', 'BRIM', 'JEANS', 'TINTO', 'POLYESTER'];
+                           'VISCOLYCRA', 'LINHO', 'SARJA', 'BRIM', 'JEANS', 'TINTO', 'POLYESTER',
+                           'GABARDINE', 'HELANCA', 'BLACKOUT', 'VOIL', 'CHIFFON', 'ZIBELINE'];
     for (const linha of linhas) {
       if (linha.includes('EUROTEXTIL') || linha.includes('CNPJ')) continue;
       for (const tecido of tecidosBasicos) {
         if (linha.includes(tecido)) {
-          info.produto = linha.replace(/PR[O0]DU[T7D][O0D]?[\s:]*/g, '').trim();
-          console.log('PRODUTO encontrado (fallback):', info.produto);
+          produtoEtiqueta = linha.replace(/PR[O0]DU[T7D][O0D]?[\s:]*/g, '').trim();
+          console.log('PRODUTO encontrado (fallback):', produtoEtiqueta);
           break;
         }
       }
-      if (info.produto) break;
+      if (produtoEtiqueta) break;
     }
+  }
+
+  // Agora buscar no DEPARA: Coluna A (nomeFornecedor) → Coluna B (nomeERP)
+  if (produtoEtiqueta && produtosDEPARA.length > 0) {
+    const produtoUpper = produtoEtiqueta.toUpperCase();
+    console.log(`Buscando "${produtoUpper}" no DEPARA (${produtosDEPARA.length} registros)...`);
+
+    // Ordenar DEPARA por tamanho do nome (maior primeiro para match mais específico)
+    const deparaOrdenado = [...produtosDEPARA].sort((a, b) =>
+      (b.nomeFornecedor?.length || 0) - (a.nomeFornecedor?.length || 0)
+    );
+
+    for (const item of deparaOrdenado) {
+      const nomeFornecedor = item.nomeFornecedor?.toUpperCase() || '';
+
+      // Match exato ou o texto da etiqueta contém o nome do fornecedor
+      if (nomeFornecedor && (
+        produtoUpper === nomeFornecedor ||
+        produtoUpper.includes(nomeFornecedor) ||
+        nomeFornecedor.includes(produtoUpper)
+      )) {
+        // Encontrou! Usar o nome ERP (Coluna B)
+        if (item.nomeERP) {
+          console.log(`DEPARA match: "${nomeFornecedor}" → "${item.nomeERP}"`);
+          info.produto = item.nomeERP;
+          break;
+        }
+      }
+    }
+
+    // Se não encontrou no DEPARA, usar o texto original da etiqueta
+    if (!info.produto) {
+      console.log('Não encontrou no DEPARA, usando texto original');
+      info.produto = produtoEtiqueta;
+    }
+  } else if (produtoEtiqueta) {
+    // Sem DEPARA disponível, usar texto original
+    info.produto = produtoEtiqueta;
   }
 
   // ============================================
