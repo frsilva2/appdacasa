@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Tesseract from 'tesseract.js';
 import multer from 'multer';
+import { lerExcel } from './depara.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -167,8 +168,28 @@ export const processarOCR = async (req, res) => {
       confianca: word.confidence
     }));
 
+    // Carregar lista de produtos do DEPARA
+    let produtosDEPARA = [];
+    try {
+      const dadosExcel = await lerExcel();
+      if (dadosExcel && dadosExcel.depara) {
+        // Extrair nomes de produtos da coluna A (nomeFornecedor) e B (nomeERP)
+        produtosDEPARA = dadosExcel.depara.map(item => {
+          const keys = Object.keys(item);
+          // Pegar valores das primeiras duas colunas (A e B)
+          return {
+            nomeFornecedor: item[keys[0]] || '',
+            nomeERP: item[keys[1]] || ''
+          };
+        }).filter(p => p.nomeFornecedor || p.nomeERP);
+        console.log(`DEPARA carregado: ${produtosDEPARA.length} produtos`);
+      }
+    } catch (err) {
+      console.log('Aviso: Não foi possível carregar DEPARA:', err.message);
+    }
+
     // Tentar extrair informações estruturadas da etiqueta
-    const informacoes = extrairInformacoesEtiqueta(textoCompleto);
+    const informacoes = extrairInformacoesEtiqueta(textoCompleto, produtosDEPARA);
 
     res.json({
       success: true,
@@ -198,9 +219,11 @@ export const processarOCR = async (req, res) => {
 /**
  * Função auxiliar para extrair informações estruturadas da etiqueta
  * ABORDAGEM: Normalização agressiva + busca por estrutura
- * Prevê ruídos e erros típicos de OCR em fotos reais
+ * Usa lista de produtos do DEPARA para identificação
+ * @param {string} texto - Texto OCR bruto
+ * @param {Array} produtosDEPARA - Lista de produtos do DEPARA [{nomeFornecedor, nomeERP}]
  */
-function extrairInformacoesEtiqueta(texto) {
+function extrairInformacoesEtiqueta(texto, produtosDEPARA = []) {
   const info = {
     produto: null,
     cor: null,
@@ -211,6 +234,7 @@ function extrairInformacoesEtiqueta(texto) {
   console.log('=== EXTRAINDO INFORMAÇÕES DA ETIQUETA ===');
   console.log('Texto OCR bruto:');
   console.log(texto);
+  console.log(`Produtos DEPARA disponíveis: ${produtosDEPARA.length}`);
 
   // ============================================
   // NORMALIZAÇÃO AGRESSIVA
@@ -239,22 +263,22 @@ function extrairInformacoesEtiqueta(texto) {
   // 1. EXTRAIR PRODUTO
   // ============================================
 
-  // Lista de tecidos conhecidos (com variações de OCR)
-  const tecidos = [
-    'OXFORD', '0XF0RD', 'OXFORO', 'DXFORD',
-    'TACTEL', 'TACT3L', 'TACTE1',
-    'CREPE', 'CR3PE', 'CREP3',
-    'CETIM', 'CET1M', 'C3TIM',
-    'MALHA', 'MA1HA', 'MAIHA',
-    'TRICOLINE', 'TR1COLINE', 'TRIC0LINE',
-    'VISCOLYCRA', 'VISC0LYCRA',
-    'LINHO', 'L1NHO', 'LINH0',
-    'SARJA', 'SARJ4',
-    'BRIM', 'BR1M',
-    'JEANS', 'J3ANS',
-    'TINTO', 'T1NTO', 'TINT0',
-    'POLYESTER', 'P0LYESTER', 'POLIESTER', 'POL1ESTER'
-  ];
+  // Construir lista de nomes de produtos do DEPARA (normalizada)
+  const nomesProdutosDEPARA = [];
+  for (const p of produtosDEPARA) {
+    if (p.nomeFornecedor) {
+      nomesProdutosDEPARA.push(p.nomeFornecedor.toUpperCase().trim());
+    }
+    if (p.nomeERP) {
+      nomesProdutosDEPARA.push(p.nomeERP.toUpperCase().trim());
+    }
+  }
+  // Remover duplicatas e ordenar por tamanho (maior primeiro para match mais específico)
+  const produtosUnicos = [...new Set(nomesProdutosDEPARA)]
+    .filter(n => n.length > 3)
+    .sort((a, b) => b.length - a.length);
+
+  console.log(`Nomes de produtos únicos do DEPARA: ${produtosUnicos.length}`);
 
   for (const linha of linhas) {
     // Pular linhas de cabeçalho
@@ -273,19 +297,40 @@ function extrairInformacoesEtiqueta(texto) {
       }
     }
 
-    // Se linha contém nome de tecido conhecido
-    for (const tecido of tecidos) {
-      if (linha.includes(tecido)) {
+    // Se linha contém nome de produto do DEPARA
+    for (const nomeProduto of produtosUnicos) {
+      // Extrair palavras-chave do nome (primeiras 2-3 palavras significativas)
+      const palavras = nomeProduto.split(/\s+/).filter(p => p.length > 2);
+      const palavraChave = palavras[0]; // Primeira palavra (ex: OXFORD, TACTEL, etc)
+
+      if (palavraChave && linha.includes(palavraChave)) {
         // Pegar a linha inteira, removendo prefixo PRODUTO: se existir
         let prod = linha.replace(/PR[O0]DU[T7D][O0D]?[\s:]*/g, '').trim();
-        if (prod.length > 8) {
+        if (prod.length > 5) {
           info.produto = prod;
-          console.log('PRODUTO encontrado (tecido):', info.produto);
+          console.log('PRODUTO encontrado (DEPARA):', info.produto);
           break;
         }
       }
     }
     if (info.produto) break;
+  }
+
+  // Fallback: se não encontrou via DEPARA, tentar com palavras-chave básicas
+  if (!info.produto) {
+    const tecidosBasicos = ['OXFORD', 'TACTEL', 'CREPE', 'CETIM', 'MALHA', 'TRICOLINE',
+                           'VISCOLYCRA', 'LINHO', 'SARJA', 'BRIM', 'JEANS', 'TINTO', 'POLYESTER'];
+    for (const linha of linhas) {
+      if (linha.includes('EUROTEXTIL') || linha.includes('CNPJ')) continue;
+      for (const tecido of tecidosBasicos) {
+        if (linha.includes(tecido)) {
+          info.produto = linha.replace(/PR[O0]DU[T7D][O0D]?[\s:]*/g, '').trim();
+          console.log('PRODUTO encontrado (fallback):', info.produto);
+          break;
+        }
+      }
+      if (info.produto) break;
+    }
   }
 
   // ============================================
