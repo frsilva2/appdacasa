@@ -31,6 +31,86 @@ import coresRoutes from './routes/cores.routes.js';
 import etiquetasRoutes from './routes/etiquetas.routes.js';
 import deparaRoutes from './routes/depara.routes.js';
 
+// =====================================================
+// MIGRATIONS AUTOMÁTICAS (executar antes de iniciar)
+// =====================================================
+
+async function runMigrations() {
+  try {
+    logger.info('🔄 Verificando migrations pendentes...');
+
+    // Verificar se a coluna produtoNome existe na tabela InventarioItem
+    const columns = await prisma.$queryRaw`
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'InventarioItem'
+      AND COLUMN_NAME = 'produtoNome'
+    `;
+
+    if (columns.length === 0) {
+      logger.info('📦 Aplicando migration: add_text_fields_inventario_item');
+
+      // Adicionar novos campos de texto
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        ADD COLUMN produtoNome VARCHAR(255) NOT NULL DEFAULT ''
+      `;
+
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        ADD COLUMN corNome VARCHAR(100) NULL
+      `;
+
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        ADD COLUMN codigoCor VARCHAR(20) NULL
+      `;
+
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        ADD COLUMN fonteOCR BOOLEAN NOT NULL DEFAULT false
+      `;
+
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        ADD COLUMN produtoNoDEPARA BOOLEAN NOT NULL DEFAULT false
+      `;
+
+      // Preencher produtoNome com dados existentes (se houver itens antigos)
+      await prisma.$executeRaw`
+        UPDATE InventarioItem i
+        INNER JOIN Produto p ON i.produtoId = p.id
+        SET i.produtoNome = p.nome
+        WHERE i.produtoNome = ''
+      `;
+
+      // Tornar produtoId e corId opcionais
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        MODIFY produtoId VARCHAR(191) NULL
+      `;
+
+      await prisma.$executeRaw`
+        ALTER TABLE InventarioItem
+        MODIFY corId VARCHAR(191) NULL
+      `;
+
+      logger.info('✅ Migration aplicada com sucesso!');
+    } else {
+      logger.info('✅ Migrations já aplicadas.');
+    }
+  } catch (error) {
+    // Se der erro porque já existe, ignorar
+    if (error.code === 'P2010' || error.message?.includes('Duplicate column')) {
+      logger.info('✅ Migrations já aplicadas (colunas já existem).');
+    } else {
+      logger.error('❌ Erro ao aplicar migrations:', error.message);
+      // Não falhar o servidor por causa de migration
+    }
+  }
+}
+
 // Carregar variáveis de ambiente
 dotenv.config();
 
@@ -261,12 +341,20 @@ app.use(errorHandler);
 // INICIALIZAÇÃO DO SERVIDOR
 // =====================================================
 
-server.listen(PORT, () => {
-  logger.info(`🚀 Servidor rodando na porta ${PORT}`);
-  logger.info(`📍 Ambiente: ${NODE_ENV}`);
-  logger.info(`🔗 API: http://localhost:${PORT}${API_PREFIX}`);
-  logger.info(`💊 Health check: http://localhost:${PORT}/health`);
-});
+// Executar migrations e iniciar servidor
+async function startServer() {
+  // Rodar migrations automáticas
+  await runMigrations();
+
+  server.listen(PORT, () => {
+    logger.info(`🚀 Servidor rodando na porta ${PORT}`);
+    logger.info(`📍 Ambiente: ${NODE_ENV}`);
+    logger.info(`🔗 API: http://localhost:${PORT}${API_PREFIX}`);
+    logger.info(`💊 Health check: http://localhost:${PORT}/health`);
+  });
+}
+
+startServer();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
