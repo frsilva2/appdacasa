@@ -140,6 +140,10 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
     }
 
     // 3. BUSCAR PRODUTO NO DEPARA
+    // Lógica simples:
+    // - Procurar nome da etiqueta na Coluna A (nomeFornecedor)
+    // - Se encontrar: usar Coluna B (nomeERP)
+    // - Se não encontrar: usar nome da etiqueta
     let nomeParaUsar = info.produto || '';
     let encontradoNoDEPARA = false;
 
@@ -152,41 +156,24 @@ const AdicionarItemModal = ({ inventario, onClose, onSuccess }) => {
         const deparaList = response.data.data || [];
         console.log(`DEPARA carregado: ${deparaList.length} registros`);
 
-        // Buscar correspondência EXATA ou parcial no DEPARA
-        // nomeFornecedor = nome na etiqueta do fornecedor
-        // nomeERP = nome no sistema ERP
+        // Procurar nome da etiqueta na Coluna A (nomeFornecedor)
         const correspondencia = deparaList.find(item => {
           const nomeFornecedor = (item.nomeFornecedor || '').toUpperCase().trim();
-
-          // Match exato
-          if (nomeFornecedor === produtoEtiqueta) {
-            return true;
-          }
-
-          // Match parcial: etiqueta contém nome do fornecedor
-          if (produtoEtiqueta.includes(nomeFornecedor) && nomeFornecedor.length > 3) {
-            return true;
-          }
-
-          // Match parcial: nome do fornecedor contém etiqueta
-          if (nomeFornecedor.includes(produtoEtiqueta) && produtoEtiqueta.length > 3) {
-            return true;
-          }
-
-          return false;
+          return nomeFornecedor === produtoEtiqueta;
         });
 
         if (correspondencia && correspondencia.nomeERP) {
+          // Encontrou na Coluna A → usar Coluna B
           console.log('✅ DEPARA encontrado:', correspondencia.nomeFornecedor, '->', correspondencia.nomeERP);
           nomeParaUsar = correspondencia.nomeERP;
           encontradoNoDEPARA = true;
         } else {
+          // Não encontrou → usar nome da etiqueta
           console.log('❌ DEPARA não encontrado, usando nome da etiqueta:', info.produto);
           nomeParaUsar = info.produto;
         }
       } catch (error) {
         console.log('Erro ao buscar DEPARA:', error);
-        // Em caso de erro, usar nome da etiqueta
         nomeParaUsar = info.produto;
       }
     }
