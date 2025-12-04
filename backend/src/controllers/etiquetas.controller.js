@@ -197,8 +197,8 @@ export const processarOCR = async (req, res) => {
 
 /**
  * Função auxiliar para extrair informações estruturadas da etiqueta
- * Extrai apenas: PRODUTO, COR e METRAGEM
- * Padrões flexíveis para lidar com erros de OCR
+ * ABORDAGEM: Normalização agressiva + busca por estrutura
+ * Prevê ruídos e erros típicos de OCR em fotos reais
  */
 function extrairInformacoesEtiqueta(texto) {
   const info = {
@@ -209,131 +209,171 @@ function extrairInformacoesEtiqueta(texto) {
   };
 
   console.log('=== EXTRAINDO INFORMAÇÕES DA ETIQUETA ===');
-  console.log('Texto OCR recebido:');
+  console.log('Texto OCR bruto:');
   console.log(texto);
-  console.log('---');
-
-  // Normalizar texto: remover caracteres estranhos do OCR
-  const textoNormalizado = texto
-    .replace(/[|]/g, 'I')  // OCR confunde | com I
-    .replace(/[0O]/g, (m) => m)  // Manter como está
-    .replace(/\r/g, '\n');  // Normalizar quebras de linha
 
   // ============================================
-  // 1. EXTRAIR PRODUTO (múltiplos padrões)
+  // NORMALIZAÇÃO AGRESSIVA
   // ============================================
-  const padroesProduto = [
-    // Padrão 1: "PRODUTO: texto" ou "PRODUTO texto"
-    /prod[uú]to[\s:]*([A-ZÀ-Ú0-9\s\.,/%\-]+?)(?=\n|cor|COR|$)/gi,
-    // Padrão 2: "CÓDIGO - NOME" (ex: "334103 - OXFORD...")
-    /(\d{5,6})\s*[-–]\s*([A-ZÀ-Ú0-9\s\.,/%]+?)(?=\n|cor|COR|$)/gi,
-    // Padrão 3: Linha que começa com OXFORD, TACTEL, CREPE, etc
-    /^((?:OXFORD|TACTEL|CREPE|CETIM|MALHA|TRICOLINE|VISCOLYCRA|LINHO|SARJA|BRIM|JEANS)[A-ZÀ-Ú0-9\s\.,/%\-]+?)(?=\n|$)/gim,
-    // Padrão 4: Qualquer texto após número de 6 dígitos
-    /\d{6}[^\n]*?([A-Z]{3,}[A-ZÀ-Ú0-9\s\.,/%\-]+?)(?=\n|cor|COR|$)/gi
+  let textoLimpo = texto
+    .toUpperCase()
+    // Caracteres que OCR confunde frequentemente
+    .replace(/[|!1Il]/g, 'I')      // Variações de I
+    .replace(/[{}[\]()]/g, '')      // Remover brackets
+    .replace(/[`´''""]/g, '')       // Remover aspas
+    .replace(/[@#]/g, '#')          // Normalizar hashtag
+    // Normalizar quebras de linha
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    // Múltiplos espaços -> um espaço
+    .replace(/[ \t]+/g, ' ')
+    // Múltiplas quebras -> uma quebra
+    .replace(/\n+/g, '\n')
+    .trim();
+
+  // Separar em linhas
+  const linhas = textoLimpo.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+  console.log('Linhas:', linhas);
+
+  // ============================================
+  // 1. EXTRAIR PRODUTO
+  // ============================================
+
+  // Lista de tecidos conhecidos (com variações de OCR)
+  const tecidos = [
+    'OXFORD', '0XF0RD', 'OXFORO', 'DXFORD',
+    'TACTEL', 'TACT3L', 'TACTE1',
+    'CREPE', 'CR3PE', 'CREP3',
+    'CETIM', 'CET1M', 'C3TIM',
+    'MALHA', 'MA1HA', 'MAIHA',
+    'TRICOLINE', 'TR1COLINE', 'TRIC0LINE',
+    'VISCOLYCRA', 'VISC0LYCRA',
+    'LINHO', 'L1NHO', 'LINH0',
+    'SARJA', 'SARJ4',
+    'BRIM', 'BR1M',
+    'JEANS', 'J3ANS',
+    'TINTO', 'T1NTO', 'TINT0',
+    'POLYESTER', 'P0LYESTER', 'POLIESTER', 'POL1ESTER'
   ];
 
-  for (const padrao of padroesProduto) {
-    const match = padrao.exec(textoNormalizado);
-    if (match) {
-      // Pegar o grupo correto (último grupo com texto)
-      const resultado = match[match.length - 1] || match[1];
-      if (resultado && resultado.trim().length > 3) {
-        info.produto = resultado.replace(/\s+/g, ' ').trim();
-        console.log('PRODUTO encontrado (padrão):', info.produto);
+  for (const linha of linhas) {
+    // Pular linhas de cabeçalho
+    if (linha.includes('EUROTEXTIL') || linha.includes('EUR0TEXTIL')) continue;
+    if (linha.includes('CNPJ') || linha.includes('LTDA')) continue;
+    if (/^[0-9.\-\s]+$/.test(linha)) continue; // Só números (código de barras)
+
+    // Verificar se linha contém PRODU (PRODUTO, PRODUTD, PR0DUTO, etc)
+    if (/PR[O0]DU/.test(linha)) {
+      // Extrair tudo após PRODUTO:
+      const match = linha.match(/PR[O0]DU[T7D][O0D]?[\s:]+(.+)/);
+      if (match && match[1] && match[1].length > 5) {
+        info.produto = match[1].trim();
+        console.log('PRODUTO encontrado (label):', info.produto);
+        break;
+      }
+    }
+
+    // Se linha contém nome de tecido conhecido
+    for (const tecido of tecidos) {
+      if (linha.includes(tecido)) {
+        // Pegar a linha inteira, removendo prefixo PRODUTO: se existir
+        let prod = linha.replace(/PR[O0]DU[T7D][O0D]?[\s:]*/g, '').trim();
+        if (prod.length > 8) {
+          info.produto = prod;
+          console.log('PRODUTO encontrado (tecido):', info.produto);
+          break;
+        }
+      }
+    }
+    if (info.produto) break;
+  }
+
+  // ============================================
+  // 2. EXTRAIR COR
+  // ============================================
+
+  for (const linha of linhas) {
+    // Padrão: COR: #00502 AMARELO (ou variações C0R, #OO5O2, etc)
+    // Aceita: COR #00502 AMARELO, COR: 00502 AMARELO, COR:#00502-AMARELO
+    const matchCor = linha.match(/C[O0]R[\s:#]*([O0-9]{3,5})[\s\-]*([A-Z]{3,})/);
+    if (matchCor) {
+      // Normalizar código (trocar O por 0)
+      info.codigoCor = matchCor[1].replace(/O/g, '0');
+      info.cor = matchCor[2];
+      console.log('COR encontrada:', `#${info.codigoCor} ${info.cor}`);
+      break;
+    }
+
+    // Padrão alternativo: #XXXXX NOME (sem COR: na frente)
+    const matchHash = linha.match(/#([O0-9]{3,5})[\s\-]*([A-Z]{3,})/);
+    if (matchHash && !info.cor) {
+      info.codigoCor = matchHash[1].replace(/O/g, '0');
+      info.cor = matchHash[2];
+      console.log('COR encontrada (hash):', `#${info.codigoCor} ${info.cor}`);
+      break;
+    }
+
+    // Padrão: COR: NOME (sem código)
+    const matchCorSimples = linha.match(/C[O0]R[\s:]+([A-Z]{4,})/);
+    if (matchCorSimples && !info.cor) {
+      info.cor = matchCorSimples[1];
+      console.log('COR encontrada (simples):', info.cor);
+    }
+  }
+
+  // ============================================
+  // 3. EXTRAIR METRAGEM
+  // ============================================
+
+  for (const linha of linhas) {
+    // Pular linhas que claramente não são metragem
+    if (linha.includes('SEQ') || linha.includes('PO:') || linha.includes('DESENHO')) continue;
+    if (linha.includes('CHINA') || linha.includes('ORIGEM')) continue;
+
+    // Padrão: METRAGEM: 50,00 MT (ou METR4GEM, M3TRAGEM, etc)
+    const matchMetr = linha.match(/M[E3]TR[A4]?G[E3]?M[\s:]*([0-9]+[,\.][0-9]{1,2})/);
+    if (matchMetr) {
+      info.metragem = matchMetr[1].replace(',', '.');
+      console.log('METRAGEM encontrada (label):', info.metragem);
+      break;
+    }
+
+    // Padrão: XX,XX MT ou XX.XX MT
+    const matchMT = linha.match(/([0-9]{1,3}[,\.][0-9]{1,2})[\s]*M[T]?\b/);
+    if (matchMT) {
+      const valor = parseFloat(matchMT[1].replace(',', '.'));
+      if (valor >= 1 && valor <= 500) {
+        info.metragem = matchMT[1].replace(',', '.');
+        console.log('METRAGEM encontrada (MT):', info.metragem);
         break;
       }
     }
   }
 
-  // ============================================
-  // 2. EXTRAIR COR (múltiplos padrões)
-  // ============================================
-  const padroesCor = [
-    // Padrão 1: "COR: #00901 PRATA" ou "COR:#814 - CAPUCCINO"
-    /cor[\s:]*#?(\d{2,5})\s*[-\s]*([A-ZÀ-Úa-zà-ú\s]+?)(?=\n|desenho|metragem|medida|po:|seq|$)/gi,
-    // Padrão 2: "COR: NOME" (sem código)
-    /cor[\s:]+([A-ZÀ-Úa-zà-ú\s]+?)(?=\n|desenho|metragem|medida|$)/gi,
-    // Padrão 3: "#00502 AMARELO" (código e nome na mesma linha)
-    /#(\d{2,5})\s*[-\s]*([A-ZÀ-Úa-zà-ú\s]+?)(?=\n|$)/gi,
-    // Padrão 4: Linha com código 5 dígitos seguido de nome de cor
-    /(\d{5})\s+([A-ZÀ-Ú]{3,}[A-ZÀ-Úa-zà-ú\s]*)(?=\n|$)/gi
-  ];
-
-  for (const padrao of padroesCor) {
-    const match = padrao.exec(textoNormalizado);
-    if (match) {
-      if (match[2]) {
-        // Tem código e nome
-        info.codigoCor = match[1].trim();
-        info.cor = match[2].trim().toUpperCase();
-      } else if (match[1]) {
-        // Só tem nome
-        info.cor = match[1].trim().toUpperCase();
-      }
-      if (info.cor && info.cor.length > 2) {
-        console.log('COR encontrada:', info.codigoCor ? `#${info.codigoCor} ${info.cor}` : info.cor);
-        break;
-      }
-    }
-  }
-
-  // ============================================
-  // 3. EXTRAIR METRAGEM (múltiplos padrões)
-  // ============================================
-  const padroesMetragem = [
-    // Padrão 1: "METRAGEM: 66,00 MT" ou "MEDIDA: 59,00 MT"
-    /(?:metragem|medida)[\s:]*(\d+[\.,]\d{1,2})\s*(?:mt|m|metros?)?/gi,
-    // Padrão 2: "XX,XX MT" ou "XX.XX MT" (em qualquer lugar)
-    /(\d{2,3}[\.,]\d{1,2})\s*(?:mt|m)\b/gi,
-    // Padrão 3: "XX,XX" seguido de MT em outra linha
-    /(\d{2,3}[\.,]\d{1,2})[\s\n]*mt/gi,
-    // Padrão 4: Número no formato XX,XX perto de "MT" ou "metros"
-    /(\d+[\.,]\d{2})\s*(?:mt|metros?|m\b)/gi
-  ];
-
-  for (const padrao of padroesMetragem) {
-    const match = padrao.exec(textoNormalizado);
-    if (match && match[1]) {
-      const valor = match[1].replace(',', '.');
-      const numero = parseFloat(valor);
-      // Validar: metragem típica é entre 1 e 500 metros
-      if (numero >= 1 && numero <= 500) {
-        info.metragem = valor;
-        console.log('METRAGEM encontrada:', info.metragem, 'MT');
-        break;
-      }
-    }
-  }
-
-  // ============================================
-  // FALLBACK: Busca genérica se não encontrou
-  // ============================================
-
-  // Se não encontrou produto, tentar pegar a primeira linha significativa
-  if (!info.produto) {
-    const linhas = textoNormalizado.split('\n').filter(l => l.trim().length > 5);
-    for (const linha of linhas) {
-      // Ignorar linhas que parecem ser cabeçalhos ou códigos
-      if (!/^(eurotextil|cnpj|data|hora|seq|po:)/i.test(linha) && /[A-Z]{4,}/i.test(linha)) {
-        info.produto = linha.replace(/\s+/g, ' ').trim().substring(0, 100);
-        console.log('PRODUTO (fallback):', info.produto);
-        break;
-      }
-    }
-  }
-
-  // Se não encontrou metragem, buscar qualquer número no formato XX,XX
+  // Fallback metragem: buscar número no formato XX,XX
   if (!info.metragem) {
-    const matchNum = /(\d{2,3}[\.,]\d{2})/g.exec(textoNormalizado);
-    if (matchNum) {
-      const valor = matchNum[1].replace(',', '.');
-      const numero = parseFloat(valor);
-      if (numero >= 10 && numero <= 200) {
-        info.metragem = valor;
-        console.log('METRAGEM (fallback genérico):', info.metragem);
+    for (const linha of linhas) {
+      if (linha.includes('SEQ') || linha.includes('PO:')) continue;
+      const matchNum = linha.match(/\b([0-9]{2,3}[,\.][0-9]{2})\b/);
+      if (matchNum) {
+        const valor = parseFloat(matchNum[1].replace(',', '.'));
+        if (valor >= 10 && valor <= 200) {
+          info.metragem = matchNum[1].replace(',', '.');
+          console.log('METRAGEM encontrada (fallback):', info.metragem);
+          break;
+        }
       }
     }
+  }
+
+  // ============================================
+  // LIMPEZA FINAL
+  // ============================================
+  if (info.produto) {
+    info.produto = info.produto.replace(/\s+/g, ' ').trim();
+  }
+  if (info.cor) {
+    info.cor = info.cor.replace(/[^A-ZÀ-Ú\s]/g, '').trim();
   }
 
   console.log('=== RESULTADO FINAL ===');
