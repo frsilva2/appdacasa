@@ -3,10 +3,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Tesseract from 'tesseract.js';
 import multer from 'multer';
-import { lerExcel } from './depara.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Caminho para o arquivo JSON de DEPARA (dentro do repositório)
+const DEPARA_JSON_PATH = path.join(__dirname, '../data/depara.json');
+
+// Cache do DEPARA em memória
+let deparaCache = null;
 
 // Caminho para o diretório de assets
 const ASSETS_PATH = process.env.ASSETS_PATH || path.join(__dirname, '../../../../Emporio-Tecidos-Assets');
@@ -168,50 +173,27 @@ export const processarOCR = async (req, res) => {
       confianca: word.confidence
     }));
 
-    // Carregar lista de produtos do DEPARA
+    // Carregar lista de produtos do DEPARA (do arquivo JSON)
     let produtosDEPARA = [];
     try {
-      const dadosExcel = await lerExcel();
-      if (dadosExcel && dadosExcel.depara) {
-        // Extrair nomes de produtos usando os cabeçalhos reais da planilha
-        // Coluna A: "NOME PRODUTO FORNECEDOR"
-        // Coluna B: "NOME PRODUTO EMPORIO"
-        produtosDEPARA = dadosExcel.depara.map(item => {
-          // Tentar com nomes exatos das colunas primeiro
-          let nomeFornecedor = item['NOME PRODUTO FORNECEDOR'] || '';
-          let nomeERP = item['NOME PRODUTO EMPORIO'] || '';
-
-          // Fallback: buscar por colunas que contenham as palavras-chave
-          if (!nomeFornecedor && !nomeERP) {
-            const keys = Object.keys(item);
-            for (const key of keys) {
-              const keyUpper = key.toUpperCase();
-              if (keyUpper.includes('FORNECEDOR') && !nomeFornecedor) {
-                nomeFornecedor = item[key] || '';
-              }
-              if ((keyUpper.includes('EMPORIO') || keyUpper.includes('ERP')) && !nomeERP) {
-                nomeERP = item[key] || '';
-              }
-            }
-          }
-
-          // Fallback final: usar primeiras duas colunas
-          if (!nomeFornecedor && !nomeERP) {
-            const keys = Object.keys(item);
-            nomeFornecedor = item[keys[0]] || '';
-            nomeERP = item[keys[1]] || '';
-          }
-
-          return { nomeFornecedor, nomeERP };
-        }).filter(p => p.nomeFornecedor || p.nomeERP);
-
-        console.log(`DEPARA carregado: ${produtosDEPARA.length} produtos`);
+      // Usar cache se disponível
+      if (deparaCache) {
+        produtosDEPARA = deparaCache;
+        console.log(`DEPARA carregado do cache: ${produtosDEPARA.length} produtos`);
+      } else {
+        // Carregar do arquivo JSON
+        const jsonContent = await fs.readFile(DEPARA_JSON_PATH, 'utf-8');
+        produtosDEPARA = JSON.parse(jsonContent);
+        deparaCache = produtosDEPARA; // Salvar no cache
+        console.log(`DEPARA carregado do JSON: ${produtosDEPARA.length} produtos`);
         if (produtosDEPARA.length > 0) {
           console.log('Exemplo:', JSON.stringify(produtosDEPARA[0]));
         }
       }
     } catch (err) {
       console.log('Aviso: Não foi possível carregar DEPARA:', err.message);
+      // Fallback: lista vazia (OCR vai usar texto original)
+      produtosDEPARA = [];
     }
 
     // Tentar extrair informações estruturadas da etiqueta

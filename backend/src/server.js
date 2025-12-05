@@ -39,61 +39,62 @@ async function runMigrations() {
   try {
     logger.info('🔄 Verificando migrations pendentes...');
 
-    // Verificar se a coluna produtoNome existe na tabela InventarioItem
+    // Verificar se a coluna produtoNome existe na tabela InventarioItem (sintaxe PostgreSQL)
     const columns = await prisma.$queryRaw`
-      SELECT COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'InventarioItem'
-      AND COLUMN_NAME = 'produtoNome'
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'InventarioItem'
+      AND column_name = 'produtoNome'
     `;
 
     if (columns.length === 0) {
       logger.info('📦 Aplicando migration: add_text_fields_inventario_item');
 
-      // Adicionar novos campos de texto
+      // Adicionar novos campos de texto (sintaxe PostgreSQL)
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        ADD COLUMN produtoNome VARCHAR(255) NOT NULL DEFAULT ''
+        ALTER TABLE "InventarioItem"
+        ADD COLUMN IF NOT EXISTS "produtoNome" VARCHAR(255) NOT NULL DEFAULT ''
       `;
 
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        ADD COLUMN corNome VARCHAR(100) NULL
+        ALTER TABLE "InventarioItem"
+        ADD COLUMN IF NOT EXISTS "corNome" VARCHAR(100) NULL
       `;
 
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        ADD COLUMN codigoCor VARCHAR(20) NULL
+        ALTER TABLE "InventarioItem"
+        ADD COLUMN IF NOT EXISTS "codigoCor" VARCHAR(20) NULL
       `;
 
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        ADD COLUMN fonteOCR BOOLEAN NOT NULL DEFAULT false
+        ALTER TABLE "InventarioItem"
+        ADD COLUMN IF NOT EXISTS "fonteOCR" BOOLEAN NOT NULL DEFAULT false
       `;
 
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        ADD COLUMN produtoNoDEPARA BOOLEAN NOT NULL DEFAULT false
+        ALTER TABLE "InventarioItem"
+        ADD COLUMN IF NOT EXISTS "produtoNoDEPARA" BOOLEAN NOT NULL DEFAULT false
       `;
 
-      // Preencher produtoNome com dados existentes (se houver itens antigos)
+      // Preencher produtoNome com dados existentes (sintaxe PostgreSQL para UPDATE com JOIN)
       await prisma.$executeRaw`
-        UPDATE InventarioItem i
-        INNER JOIN Produto p ON i.produtoId = p.id
-        SET i.produtoNome = p.nome
-        WHERE i.produtoNome = ''
+        UPDATE "InventarioItem"
+        SET "produtoNome" = p.nome
+        FROM "Produto" p
+        WHERE "InventarioItem"."produtoId" = p.id
+        AND "InventarioItem"."produtoNome" = ''
       `;
 
-      // Tornar produtoId e corId opcionais
+      // Tornar produtoId e corId opcionais (sintaxe PostgreSQL)
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        MODIFY produtoId VARCHAR(191) NULL
+        ALTER TABLE "InventarioItem"
+        ALTER COLUMN "produtoId" DROP NOT NULL
       `;
 
       await prisma.$executeRaw`
-        ALTER TABLE InventarioItem
-        MODIFY corId VARCHAR(191) NULL
+        ALTER TABLE "InventarioItem"
+        ALTER COLUMN "corId" DROP NOT NULL
       `;
 
       logger.info('✅ Migration aplicada com sucesso!');
@@ -102,7 +103,7 @@ async function runMigrations() {
     }
   } catch (error) {
     // Se der erro porque já existe, ignorar
-    if (error.code === 'P2010' || error.message?.includes('Duplicate column')) {
+    if (error.code === 'P2010' || error.message?.includes('already exists') || error.message?.includes('42701')) {
       logger.info('✅ Migrations já aplicadas (colunas já existem).');
     } else {
       logger.error('❌ Erro ao aplicar migrations:', error.message);
