@@ -28,9 +28,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token inválido ou expirado
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Não redirecionar se for uma rota pública
+      const isPublicRoute = error.config?.url?.includes('/public/');
+      
+      if (!isPublicRoute) {
+        // Token inválido ou expirado - apenas para rotas protegidas
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
