@@ -16,6 +16,9 @@ import {
 
 const router = express.Router();
 
+// ⚠️ IMPORTANTE: Rotas específicas DEVEM vir ANTES de rotas genéricas com :id
+// A rota /publico está corretamente posicionada ANTES de /:id
+
 // Rota pública - Criar pedido B2B (checkout)
 router.post('/publico', createPedidoPublico);
 

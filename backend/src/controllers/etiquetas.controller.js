@@ -34,18 +34,29 @@ const storage = multer.diskStorage({
   }
 });
 
+// BUG #7 FIX: Melhorar validacao de tipo de arquivo
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: MAX_FILE_SIZE
   },
   fileFilter: (req, file, cb) => {
-    // Aceitar apenas imagens
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Apenas arquivos de imagem são permitidos'), false);
+    // Validar MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      return cb(new Error(`Tipo de arquivo nao permitido. Aceitos: JPG, PNG`), false);
     }
+    
+    // Validar extensao
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Extensao nao permitida. Aceitas: JPG, PNG`), false);
+    }
+    
+    cb(null, true);
   }
 });
 
@@ -215,11 +226,27 @@ export const processarOCR = async (req, res) => {
       message: 'OCR processado com sucesso'
     });
   } catch (error) {
-    console.error('Erro ao processar OCR:', error);
-    res.status(500).json({
+    // BUG #6 FIX: Melhorar tratamento de erro em OCR
+    logger.error('Erro ao processar OCR:', error);
+    
+    let mensagem = 'Erro ao processar OCR';
+    let statusCode = 500;
+    
+    if (error.message.includes('ENOENT') || error.message.includes('not found')) {
+      mensagem = 'Arquivo de imagem nao encontrado';
+      statusCode = 404;
+    } else if (error.message.includes('timeout')) {
+      mensagem = 'Timeout ao processar OCR. Tente novamente com uma imagem menor';
+      statusCode = 408;
+    } else if (error.message.includes('format') || error.message.includes('invalid')) {
+      mensagem = 'Formato de imagem invalido. Use JPG ou PNG';
+      statusCode = 400;
+    }
+    
+    res.status(statusCode).json({
       success: false,
-      message: 'Erro ao processar OCR',
-      error: error.message
+      message: mensagem,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

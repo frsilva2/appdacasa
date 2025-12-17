@@ -649,6 +649,32 @@ export const createPedidoPublico = async (req, res) => {
     // Calcular valor total
     const valorTotalCalculado = calcularValorTotal(items);
 
+    // BUG #5 FIX: Validar pedido minimo (R$ 500 + 60m por categoria/cor)
+    const totalMetros = items.reduce((sum, item) => sum + item.quantidade, 0);
+    const totalValor = parseFloat(valorTotalCalculado);
+
+    if (totalValor < 500) {
+      return res.status(400).json({
+        success: false,
+        message: `Valor minimo do pedido eh R$ 500,00. Valor atual: R$ ${totalValor.toFixed(2)}`,
+        details: {
+          valorMinimo: 500,
+          valorAtual: totalValor,
+        },
+      });
+    }
+
+    if (totalMetros < 60) {
+      return res.status(400).json({
+        success: false,
+        message: `Metragem minima do pedido eh 60 metros. Metragem atual: ${totalMetros}m`,
+        details: {
+          metrosMinimo: 60,
+          metrosAtual: totalMetros,
+        },
+      });
+    }
+
     // Gerar número do pedido
     const numero = await gerarNumeroPedido();
 

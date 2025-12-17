@@ -101,10 +101,14 @@ export const getAllRequisicoes = async (req, res) => {
       data: requisicoes,
     });
   } catch (error) {
+    // BUG #8 FIX: Melhorar mensagens de erro
     logger.error('Erro ao buscar requisições:', error);
+    const mensagem = error.code === 'P2025' 
+      ? 'Requisição não encontrada' 
+      : 'Erro ao buscar requisições. Por favor, tente novamente.';
     res.status(500).json({
       success: false,
-      message: 'Erro ao buscar requisições',
+      message: mensagem,
     });
   }
 };
@@ -205,6 +209,39 @@ export const createRequisicao = async (req, res) => {
       }
     }
 
+    // BUG #4 FIX: Validar estoque disponível no CD
+    for (const item of items) {
+      const estoque = await prisma.estoque.findFirst({
+        where: {
+          produtoId: item.produtoId,
+          corId: item.corId,
+        },
+      });
+
+      const produto = await prisma.produto.findUnique({
+        where: { id: item.produtoId },
+        select: { nome: true, codigo: true },
+      });
+      const cor = await prisma.cor.findUnique({
+        where: { id: item.corId },
+        select: { nome: true },
+      });
+
+      if (!estoque || estoque.quantidade < item.quantidadeSolicitada) {
+        const quantidadeDisponivel = estoque?.quantidade || 0;
+        return res.status(400).json({
+          success: false,
+          message: `Estoque insuficiente: ${produto.nome} (${produto.codigo}) - ${cor.nome}. Disponivel: ${quantidadeDisponivel}m, Solicitado: ${item.quantidadeSolicitada}m`,
+          details: {
+            produto: produto.nome,
+            cor: cor.nome,
+            quantidadeDisponivel,
+            quantidadeSolicitada: item.quantidadeSolicitada,
+          },
+        });
+      }
+    }
+
     // Gerar número da requisição
     const numero = await gerarNumeroRequisicao();
 
@@ -265,10 +302,14 @@ export const createRequisicao = async (req, res) => {
       data: requisicao,
     });
   } catch (error) {
+    // BUG #8 FIX: Melhorar mensagens de erro
     logger.error('Erro ao criar requisição:', error);
+    const mensagem = error.code === 'P2002'
+      ? 'Ja existe uma requisição com este numero'
+      : 'Erro ao criar requisição. Por favor, tente novamente.';
     res.status(500).json({
       success: false,
-      message: 'Erro ao criar requisição',
+      message: mensagem,
     });
   }
 };
